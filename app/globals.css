@@ -24,3 +24,23 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.prose-custom :where(p, ul, ol, pre, h1, h2, h3) {
+  margin-block: 0.6em;
+}
+
+.prose-custom :where(pre) {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.75rem 1rem;
+}
+
+.prose-custom :where(code) {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+.dark .prose-custom :where(pre) {
+  background: rgba(255, 255, 255, 0.08);
+}
