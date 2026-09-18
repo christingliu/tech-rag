@@ -21,9 +21,15 @@ async function ingestFile(filePath: string) {
   console.log(`${relativePath}: ${chunks.length} chunks`);
 
   for (const chunk of chunks) {
+     console.log({
+      index: chunk.metadata.chunkIndex,
+      length: chunk.content.length,
+      source: chunk.metadata.source,
+      title: chunk.metadata.title,
+      section: chunk.metadata.section,
+    });
     //创建向量
     const vector = await createEmbedding(chunk.content);
-    console.log(vector,'vector');
     await qdrant.upsert(COLLECTION_NAME, {
       wait: true,
       points: [
@@ -32,6 +38,8 @@ async function ingestFile(filePath: string) {
           vector,
           payload: {
             content: chunk.content,
+            title: chunk.metadata.title,
+            section:chunk.metadata.section,
             source: chunk.metadata.source,
             chunkIndex: chunk.metadata.chunkIndex,
           },
@@ -41,8 +49,30 @@ async function ingestFile(filePath: string) {
   }
 }
 
-async function main() {
+async function resetCollection() {
+  const collections = await qdrant.getCollections();
+
+  const exists = collections.collections.some(
+    (collection) => collection.name === COLLECTION_NAME
+  );
+
+  if (exists) {
+    console.log(
+      `Deleting collection: ${COLLECTION_NAME}`
+    );
+
+    await qdrant.deleteCollection(COLLECTION_NAME);
+  }
+
   await ensureCollection();
+
+  console.log(
+    `Collection ready: ${COLLECTION_NAME}`
+  );
+}
+
+async function main() {
+  await resetCollection();
 
   const knowledgePath = path.join(
     process.cwd(),
@@ -77,6 +107,8 @@ async function getMarkdownFiles(dir: string): Promise<string[]> {
 
   return files;
 }
+
+
 
 main().catch((error) => {
   console.error(error);

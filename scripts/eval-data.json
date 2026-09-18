@@ -1,0 +1,54 @@
+[
+  {
+    "question": "useEffect 的 cleanup 函数什么时候执行？",
+    "expectedSources": ["react/hooks.md"],
+    "expectedSections": ["useEffect"],
+    "answerKeywords": ["重新执行", "卸载"]
+  },
+  {
+    "question": "useEffect 有哪些常见使用场景？",
+    "expectedSources": ["react/hooks.md"],
+    "expectedSections": ["useEffect"],
+    "answerKeywords": ["请求数据", "订阅"]
+  },
+  {
+    "question": "useState 怎么更新状态？",
+    "expectedSources": ["react/hooks.md"],
+    "expectedSections": ["useState"],
+    "answerKeywords": ["setCount", "重新渲染"]
+  },
+  {
+    "question": "useState 的作用是什么？",
+    "expectedSources": ["react/hooks.md"],
+    "expectedSections": ["useState"],
+    "answerKeywords": ["状态"]
+  },
+  {
+    "question": "React Hooks 是哪个版本引入的？",
+    "expectedSources": ["react/hooks.md"],
+    "answerKeywords": ["16.8"]
+  },
+  {
+    "question": "组件重新渲染会把整个页面重建吗？",
+    "expectedSources": ["react/rendering.md"],
+    "expectedSections": ["React Rendering"],
+    "answerKeywords": ["协调"]
+  },
+  {
+    "question": "状态更新会触发什么？",
+    "expectedSources": ["react/rendering.md"],
+    "expectedSections": ["React Rendering"],
+    "answerKeywords": ["重新渲染"]
+  },
+  {
+    "question": "函数组件执行之后会产生什么？",
+    "expectedSources": ["react/rendering.md"],
+    "answerKeywords": ["React Element"]
+  },
+  {
+    "question": "React 如何确定需要更新哪些 DOM？",
+    "expectedSources": ["react/rendering.md"],
+    "expectedSections": ["React Rendering"],
+    "answerKeywords": ["协调", "Element Tree"]
+  }
+]

@@ -1,0 +1,119 @@
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "https://api.ofox.ai/v1",
+});
+
+export interface RerankDocument {
+  content: string;
+  source: string;
+  title: string;
+  section: string;
+  chunkIndex: number;
+  score: number;
+}
+
+export async function rerank(
+  query: string,
+  documents: RerankDocument[],
+  topN = 3
+) {
+  if (documents.length <= topN) {
+    return documents;
+  }
+
+  const documentText = documents
+    .map((doc, index) => {
+      return `
+[Document ${index}]
+
+Source: ${doc.source}
+Title: ${doc.title}
+Section: ${doc.section}
+
+Content:
+${doc.content}
+`;
+    })
+    .join("\n\n");
+
+  const prompt = `
+你是一个 RAG Retrieval Reranker。
+
+你的任务是根据用户问题，判断候选文档与问题的相关程度。
+
+用户问题：
+
+${query}
+
+候选文档：
+
+${documentText}
+
+请按照与用户问题的相关程度，从高到低排序。
+
+只返回 JSON 数组，不要返回 Markdown，不要添加任何解释。
+
+JSON 格式：
+
+[
+  {
+    "index": 0,
+    "score": 0.95
+  },
+  {
+    "index": 2,
+    "score": 0.72
+  }
+]
+
+要求：
+
+1. index 必须是候选文档的 index。
+2. score 范围必须是 0 到 1。
+3. score 越高表示与问题越相关。
+4. 只返回最相关的 ${topN} 个文档。
+`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    temperature: 0,
+  });
+
+  const content =
+    response.choices[0]?.message?.content ?? "[]";
+
+  try {
+    const rankings = JSON.parse(content) as {
+      index: number;
+      score: number;
+    }[];
+
+    return rankings
+      .sort((a, b) => b.score - a.score)
+      .map((item) => {
+        const document = documents[item.index];
+
+        if (!document) {
+          return null;
+        }
+
+        return {
+          ...document,
+          rerankScore: item.score,
+        };
+      })
+      .filter(Boolean);
+  } catch (error) {
+    console.error("Rerank parsing failed:", error);
+
+    return documents.slice(0, topN);
+  }
+}

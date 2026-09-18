@@ -5,7 +5,7 @@ import Markdown from "react-markdown";
 
 type ChatResult = {
   answer: string;
-  sources: { source: string; score: number }[];
+  sources: { source: string; title:string;score: number,chunkIndex:number }[];
 };
 
 export default function Home() {
@@ -38,7 +38,7 @@ export default function Home() {
       });
 
       const json = await response.json();
-
+      console.log(json,'json')
       if (!response.ok) {
         setError(json.error ?? "Request failed");
         return;
@@ -98,7 +98,10 @@ export default function Home() {
                   key={`${source.source}-${index}`}
                   className="rounded-lg border border-black/[.08] px-3 py-2 text-sm dark:border-white/[.145]"
                 >
-                  {source.source}
+                  {source.title}<br/>
+                  {source.source}<br/>
+                  {source.score}<br/>
+                  {source.chunkIndex}
                 </div>
               ))}
             </div>
