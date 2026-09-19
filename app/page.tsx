@@ -101,6 +101,7 @@ export default function Home() {
                   {source.title}<br/>
                   {source.source}<br/>
                   {source.score}<br/>
+                  {(source as any).rerankScore}<br/>
                   {source.chunkIndex}
                 </div>
               ))}

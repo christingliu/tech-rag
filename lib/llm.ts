@@ -46,5 +46,19 @@ ${question}
     ],
   });
 
-  return response.choices[0]?.message?.content ?? "";
+  return {
+    answer:
+      response.choices[0]?.message?.content ?? "",
+
+    model: response.model,
+
+    usage: response.usage
+      ? {
+          promptTokens: response.usage.prompt_tokens,
+          completionTokens:
+            response.usage.completion_tokens,
+          totalTokens: response.usage.total_tokens,
+        }
+      : null,
+  }
 }

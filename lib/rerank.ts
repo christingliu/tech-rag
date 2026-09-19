@@ -14,13 +14,25 @@ export interface RerankDocument {
   score: number;
 }
 
+export interface RerankResult
+  extends RerankDocument {
+  rerankScore: number | null;
+}
+
 export async function rerank(
   query: string,
   documents: RerankDocument[],
   topN = 3
-) {
+): Promise<RerankResult[]> {
+  if (documents.length === 0) {
+    return [];
+  }
+
   if (documents.length <= topN) {
-    return documents;
+    return documents.map((doc) => ({
+      ...doc,
+      rerankScore: null,
+    }));
   }
 
   const documentText = documents
@@ -72,20 +84,21 @@ JSON 格式：
 
 1. index 必须是候选文档的 index。
 2. score 范围必须是 0 到 1。
-3. score 越高表示与问题越相关。
+3. score 越高表示与用户问题越相关。
 4. 只返回最相关的 ${topN} 个文档。
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0,
-  });
+  const response =
+    await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0,
+    });
 
   const content =
     response.choices[0]?.message?.content ?? "[]";
@@ -110,10 +123,21 @@ JSON 格式：
           rerankScore: item.score,
         };
       })
-      .filter(Boolean);
+      .filter(
+        (item): item is RerankResult & { rerankScore: number } =>
+          item !== null
+      );
   } catch (error) {
-    console.error("Rerank parsing failed:", error);
+    console.error(
+      "Rerank parsing failed:",
+      error
+    );
 
-    return documents.slice(0, topN);
+    return documents
+      .slice(0, topN)
+      .map((doc) => ({
+        ...doc,
+        rerankScore: null,
+      }));
   }
 }
