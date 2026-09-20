@@ -86,7 +86,7 @@ async function main() {
 
   for (const evalCase of cases) {
     // 评估阶段关闭 debug 日志，避免刷屏
-    const results = await retrieve(evalCase.question, limit, threshold, false);
+    const results = await retrieve(evalCase.question, limit, threshold);
 
     const expectedSources = [...new Set(evalCase.expectedSources)];
     const expectedSections = evalCase.expectedSections ?? [];
@@ -125,7 +125,7 @@ async function main() {
     let keywordRate = "-";
     if (withAnswer) {
       const context = buildContext(results);
-      const answer = await generateAnswer(evalCase.question, context);
+      const { answer } = await generateAnswer(evalCase.question, context);
 
       const rate =
         evalCase.answerKeywords.length > 0

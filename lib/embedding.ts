@@ -1,9 +1,4 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  baseURL: "https://api.ofox.ai/v1",
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { openai } from "./openai";
 
 export async function createEmbedding(text: string) {
   const response = await openai.embeddings.create({

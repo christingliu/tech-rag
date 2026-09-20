@@ -1,9 +1,4 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: "https://api.ofox.ai/v1",
-});
+import { openai } from "./openai";
 
 export interface RerankDocument {
   content: string;

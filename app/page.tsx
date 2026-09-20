@@ -1,11 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 
 type ChatResult = {
   answer: string;
-  sources: { source: string; title:string;score: number,chunkIndex:number }[];
+  sources: { source: string; title:string;score: number,section:string,chunkIndex:number }[];
+};
+
+type FilterKey = "title" | "source" | "section";
+
+type FilterState = Record<FilterKey, string>;
+
+type FilterOptions = Record<FilterKey, string[]>;
+
+const EMPTY_FILTER: FilterState = {
+  title: "",
+  source: "",
+  section: "",
+};
+
+const FILTER_LABELS: Record<FilterKey, string> = {
+  title: "标题 (title)",
+  source: "文档 (source)",
+  section: "小节 (section)",
 };
 
 export default function Home() {
@@ -13,6 +31,25 @@ export default function Home() {
   const [data, setData] = useState<ChatResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTER);
+
+  useEffect(() => {
+    fetch("/api/filters")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json) => {
+        if (json && !json.error) {
+          setFilterOptions({
+            title: json.titles ?? [],
+            source: json.sources ?? [],
+            section: json.sections ?? [],
+          });
+        }
+      })
+      .catch(() => {
+        // 加载筛选项失败时，下拉框仅保留“全部”选项
+      });
+  }, []);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,6 +63,12 @@ export default function Home() {
     setError(null);
     setData(null);
 
+    const filter: Partial<Record<FilterKey, string>> = {};
+
+    if (filters.title) filter.title = filters.title;
+    if (filters.source) filter.source = filters.source;
+    if (filters.section) filter.section = filters.section;
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -34,6 +77,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           question: trimmed,
+          filter,
         }),
       });
 
@@ -72,6 +116,33 @@ export default function Home() {
             rows={4}
             className="w-full resize-y rounded-xl border border-black/[.08] bg-white px-4 py-3 text-base text-black outline-none focus:border-black/30 dark:border-white/[.145] dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-white/40"
           />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {(["source", "title", "section"] as FilterKey[]).map((key) => (
+              <label
+                key={key}
+                className="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400"
+              >
+                {FILTER_LABELS[key]}
+                <select
+                  value={filters[key]}
+                  onChange={(event) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      [key]: event.target.value,
+                    }))
+                  }
+                  className="h-10 rounded-xl border border-black/[.08] bg-white px-3 text-base text-black outline-none focus:border-black/30 dark:border-white/[.145] dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-white/40"
+                >
+                  <option value="">全部</option>
+                  {(filterOptions?.[key] ?? []).map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
           <button
             type="submit"
             disabled={loading || !question.trim()}
@@ -100,6 +171,7 @@ export default function Home() {
                 >
                   {source.title}<br/>
                   {source.source}<br/>
+                  {source.section}<br/>
                   {source.score}<br/>
                   {(source as any).rerankScore}<br/>
                   {source.chunkIndex}

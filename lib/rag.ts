@@ -9,16 +9,26 @@ import { generateAnswer } from "./llm";
 
 import { rerank } from "./rerank";
 
-import {
+import { rewriteQuery } from "./query";
+
+/* import {
   createTrace,
   printTrace,
-} from "./trace";
+} from "./trace"; */
+
+export interface RetrieveFilter {
+  title?: string | null;
+  source?: string | null;
+  section?: string | null;
+}
 
 export async function retrieve(
   query: string,
   limit = 10,
-  scoreThreshold = 0.3
+  scoreThreshold = 0.3,
+  filter ?:RetrieveFilter
 ) {
+  console.log(filter,'retrieve-filter')
   const vector = await createEmbedding(query);
 
   const result = await qdrant.search(
@@ -27,6 +37,44 @@ export async function retrieve(
       vector,
       limit,
       with_payload: true,
+      filter: filter
+      ? {
+          must: [
+            ...(filter.source
+              ? [
+                  {
+                    key: "source",
+                    match: {
+                      value: filter.source,
+                    },
+                  },
+                ]
+              : []),
+
+            ...(filter.title
+              ? [
+                  {
+                    key: "title",
+                    match: {
+                      value: filter.title,
+                    },
+                  },
+                ]
+              : []),
+
+            ...(filter.section
+              ? [
+                  {
+                    key: "section",
+                    match: {
+                      value: filter.section,
+                    },
+                  },
+                ]
+              : []),
+          ],
+        }
+      : undefined
     }
   );
 
@@ -70,117 +118,31 @@ export async function retrieve(
 }
 
 export async function answerQuestion(
-  question: string
+  question: string,
+  filter?: RetrieveFilter
 ) {
-  const totalStart = performance.now();
 
-  const trace = createTrace(question);
-
+  const rewrittenQuery = await rewriteQuery(question); console.log( "\n========== Query Rewrite ==========" ); console.log( "Original Query:", question ); console.log( "Rewritten Query:", rewrittenQuery ); console.log( "===================================\n" );
   // =========================
-  // Embedding
+  // Retrieval
   // =========================
 
-  const embeddingStart = performance.now();
-
-  const vector = await createEmbedding(
-    question
+  const results = await retrieve(
+    rewrittenQuery,
+    10,
+    0.3,
+    filter
   );
-
-  const embeddingLatency =
-    performance.now() - embeddingStart;
-
-  trace.embedding = {
-    model: "text-embedding-3-small",
-    latencyMs: Math.round(
-      embeddingLatency
-    ),
-  };
-
-  // =========================
-  // Vector Search
-  // =========================
-
-  const retrievalStart = performance.now();
-
-  const result = await qdrant.search(
-    COLLECTION_NAME,
-    {
-      vector,
-      limit: 10,
-      with_payload: true,
-    }
-  );
-
-  const retrievalLatency =
-    performance.now() - retrievalStart;
-
-  const candidates = result.map((item) => ({
-    score: item.score,
-
-    content:
-      item.payload?.content as string,
-
-    source:
-      item.payload?.source as string,
-
-    title:
-      item.payload?.title as string,
-
-    section:
-      item.payload?.section as string,
-
-    chunkIndex:
-      item.payload?.chunkIndex as number,
-  }));
-
-  trace.retrieval = {
-    topK: 10,
-    candidateCount: candidates.length,
-    latencyMs: Math.round(
-      retrievalLatency
-    ),
-  };
-
-  // =========================
-  // Score Filter
-  // =========================
-
-  const scoreThreshold = 0.3;
-
-  const results = candidates.filter(
-    (item) =>
-      item.score >= scoreThreshold
-  );
-
-  trace.scoreFilter = {
-    threshold: scoreThreshold,
-    before: candidates.length,
-    after: results.length,
-  };
 
   // =========================
   // Rerank
   // =========================
 
-  const rerankStart = performance.now();
-
   const rerankedResults = await rerank(
-    question,
+    rewrittenQuery,
     results,
     3
   );
-
-  const rerankLatency =
-    performance.now() - rerankStart;
-
-  trace.rerank = {
-    model: "gpt-4o-mini",
-    before: results.length,
-    after: rerankedResults.length,
-    latencyMs: Math.round(
-      rerankLatency
-    ),
-  };
 
   // =========================
   // Context
@@ -199,45 +161,14 @@ ${item.content}
     })
     .join("\n\n");
 
-  trace.context = {
-    chunks: rerankedResults.length,
-    characters: context.length,
-  };
-
   // =========================
   // LLM
   // =========================
-
-  const llmStart = performance.now();
 
   const llmResult = await generateAnswer(
     question,
     context
   );
-
-  const llmLatency =
-    performance.now() - llmStart;
-
-  trace.llm = {
-    model: llmResult.model,
-    debug: {
-      trace: llmResult.answer,
-      usage: llmResult.usage ?? null,
-    },
-    latencyMs: Math.round(
-      llmLatency
-    ),
-  };
-
-  // =========================
-  // Total
-  // =========================
-
-  trace.totalLatencyMs = Math.round(
-    performance.now() - totalStart
-  );
-
-  printTrace(trace);
 
   // =========================
   // Return
@@ -258,7 +189,6 @@ ${item.content}
     ),
 
     debug: {
-      trace,
       usage: llmResult.usage,
     },
   };
