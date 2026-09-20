@@ -11,12 +11,14 @@ import { rerank } from "./rerank";
 
 import { rewriteQuery } from "./query";
 
+import { keywordSearch } from "./keyword";
+
 /* import {
   createTrace,
   printTrace,
 } from "./trace"; */
 
-export interface RetrieveFilter {
+export interface RetrievalFilter {
   title?: string | null;
   source?: string | null;
   section?: string | null;
@@ -26,7 +28,7 @@ export async function retrieve(
   query: string,
   limit = 10,
   scoreThreshold = 0.3,
-  filter ?:RetrieveFilter
+  filter ?:RetrievalFilter
 ) {
   console.log(filter,'retrieve-filter')
   const vector = await createEmbedding(query);
@@ -119,15 +121,38 @@ export async function retrieve(
 
 export async function answerQuestion(
   question: string,
-  filter?: RetrieveFilter
+  filter?: RetrievalFilter
 ) {
-
-  const rewrittenQuery = await rewriteQuery(question); console.log( "\n========== Query Rewrite ==========" ); console.log( "Original Query:", question ); console.log( "Rewritten Query:", rewrittenQuery ); console.log( "===================================\n" );
   // =========================
-  // Retrieval
+  // Query Rewrite
   // =========================
 
-  const results = await retrieve(
+  const rewrittenQuery =
+    await rewriteQuery(question);
+
+  console.log(
+    "\n========== Query Rewrite =========="
+  );
+
+  console.log(
+    "Original Query:",
+    question
+  );
+
+  console.log(
+    "Rewritten Query:",
+    rewrittenQuery
+  );
+
+  console.log(
+    "===================================\n"
+  );
+
+  // =========================
+  // Vector Search
+  // =========================
+
+  const vectorResults = await retrieve(
     rewrittenQuery,
     10,
     0.3,
@@ -135,22 +160,116 @@ export async function answerQuestion(
   );
 
   // =========================
+  // Keyword Search
+  // =========================
+
+  const keywordResults =
+    await keywordSearch(
+      rewrittenQuery,
+      10,
+      filter
+    );
+
+  console.log(
+    "\n========== Retrieval Comparison =========="
+  );
+
+  console.log(
+    "Vector Results:",
+    vectorResults.length
+  );
+
+  vectorResults.forEach(
+    (item, index) => {
+      console.log(
+        `Vector ${index + 1}:`,
+        item.score,
+        item.title,
+        item.section
+      );
+    }
+  );
+
+  console.log(
+    "\nKeyword Results:",
+    keywordResults.length
+  );
+
+  keywordResults.forEach(
+    (item, index) => {
+      console.log(
+        `Keyword ${index + 1}:`,
+        item.keywordScore,
+        item.title,
+        item.section
+      );
+    }
+  );
+
+  console.log(
+    "==========================================\n"
+  );
+
+  // =========================
+  // Merge Candidates
+  // =========================
+
+  const candidates = [
+    ...vectorResults,
+    ...keywordResults.map((item) => ({
+      ...item,
+      score: item.keywordScore,
+    })),
+  ];
+
+  // =========================
+  // Remove Duplicates
+  // =========================
+
+  const uniqueCandidates =
+    Array.from(
+      new Map(
+        candidates.map((item) => [
+          `${item.source}:${item.chunkIndex}`,
+          item,
+        ])
+      ).values()
+    );
+
+  console.log(
+    "Vector candidates:",
+    vectorResults.length
+  );
+
+  console.log(
+    "Keyword candidates:",
+    keywordResults.length
+  );
+
+  console.log(
+    "Unique candidates:",
+    uniqueCandidates.length
+  );
+
+  // =========================
   // Rerank
   // =========================
 
-  const rerankedResults = await rerank(
-    rewrittenQuery,
-    results,
-    3
-  );
+  const rerankedResults =
+    await rerank(
+      rewrittenQuery,
+      uniqueCandidates,
+      3
+    );
 
   // =========================
   // Context
   // =========================
 
-  const context = rerankedResults
-    .map((item, index) => {
-      return `
+  const context =
+    rerankedResults
+      .map((item, index) => {
+        return `
 [Source ${index + 1}]
 Source: ${item.source}
 Title: ${item.title}
@@ -158,17 +277,18 @@ Section: ${item.section}
 
 ${item.content}
 `;
-    })
-    .join("\n\n");
+      })
+      .join("\n\n");
 
   // =========================
   // LLM
   // =========================
 
-  const llmResult = await generateAnswer(
-    question,
-    context
-  );
+  const llmResult =
+    await generateAnswer(
+      question,
+      context
+    );
 
   // =========================
   // Return
@@ -185,10 +305,25 @@ ${item.content}
         score: item.score,
         rerankScore:
           item.rerankScore,
+        keywordScore:
+          "keywordScore" in item
+            ? item.keywordScore
+            : undefined,
       })
     ),
 
     debug: {
+      rewrittenQuery,
+
+      vectorResults:
+        vectorResults.length,
+
+      keywordResults:
+        keywordResults.length,
+
+      uniqueCandidates:
+        uniqueCandidates.length,
+
       usage: llmResult.usage,
     },
   };
