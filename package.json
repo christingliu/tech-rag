@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "ingest": "tsx scripts/ingest.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "test-keyword": "tsx scripts/test-keyword.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.18.0",
