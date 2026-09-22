@@ -1,4 +1,4 @@
-export interface RankedDocument {
+export interface HybridDocument {
   content: string;
   source: string;
   title: string;
@@ -6,80 +6,74 @@ export interface RankedDocument {
   chunkIndex: number;
 }
 
+export interface HybridResult
+  extends HybridDocument {
+  rrfScore: number;
+}
+
 export function reciprocalRankFusion(
-  vectorResults: RankedDocument[],
-  keywordResults: RankedDocument[],
+  vectorResults: HybridDocument[],
+  keywordResults: HybridDocument[],
   limit = 10
-) {
+): HybridResult[] {
   const k = 60;
 
   const scores = new Map<
     string,
     {
-      document: RankedDocument;
-      score: number;
+      document: HybridDocument;
+      rrfScore: number;
     }
   >();
 
-  vectorResults.forEach(
-    (document, index) => {
-      const key = getDocumentKey(
-        document
-      );
+  vectorResults.forEach((document, index) => {
+    const key = getDocumentKey(document);
 
-      const current =
-        scores.get(key);
+    const score = 1 / (k + index + 1);
 
-      const score =
-        1 / (k + index + 1);
+    const current = scores.get(key);
 
-      if (current) {
-        current.score += score;
-      } else {
-        scores.set(key, {
-          document,
-          score,
-        });
-      }
+    if (current) {//key可能有重复的，所以需要将rrfScore叠加
+      current.rrfScore += score;
+    } else {
+      scores.set(key, {
+        document,
+        rrfScore: score,
+      });
     }
-  );
+  });
 
-  keywordResults.forEach(
-    (document, index) => {
-      const key = getDocumentKey(
-        document
-      );
+  keywordResults.forEach((document, index) => {
+    const key = getDocumentKey(document);
 
-      const current =
-        scores.get(key);
+    const score = 1 / (k + index + 1);
 
-      const score =
-        1 / (k + index + 1);
+    const current = scores.get(key);
 
-      if (current) {
-        current.score += score;
-      } else {
-        scores.set(key, {
-          document,
-          score,
-        });
-      }
+    if (current) {
+      current.rrfScore += score;
+    } else {
+      scores.set(key, {
+        document,
+        rrfScore: score,
+      });
     }
-  );
+  });
 
   return Array.from(scores.values())
     .sort(
       (a, b) =>
-        b.score - a.score
+        b.rrfScore - a.rrfScore
     )
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((item) => ({
+      ...item.document,
+      rrfScore: item.rrfScore,
+    }));
 }
 
 function getDocumentKey(
-  document: RankedDocument
+  document: HybridDocument
 ) {
-  return [
-    document.source,
-    document.chunkIndex,
-  ].join(":");
+  return `${document.source}:${document.chunkIndex}`;
 }

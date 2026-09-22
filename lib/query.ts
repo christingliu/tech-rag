@@ -1,4 +1,5 @@
 import { openai } from "./openai";
+import { RagError } from "./error";
 
 export async function rewriteQuery(
   query: string
@@ -22,22 +23,28 @@ export async function rewriteQuery(
 ${query}
 `;
 
+try{
   const response =
     await openai.chat.completions.create({
       model: "gpt-4o-mini",
-
+  
       messages: [
         {
           role: "user",
           content: prompt,
         },
       ],
-
+  
       temperature: 0,
     });
-
+  
   return (
     response.choices[0]?.message?.content?.trim() ??
     query
   );
+}catch(error){
+  throw new RagError("rewrite", 
+    "Failed to rewrite query", 
+    error);
+}
 }

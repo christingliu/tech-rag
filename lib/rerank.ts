@@ -6,7 +6,7 @@ export interface RerankDocument {
   title: string;
   section: string;
   chunkIndex: number;
-  score: number;
+  rrfScore: number;
 }
 
 export interface RerankResult
@@ -67,19 +67,19 @@ JSON 格式：
 [
   {
     "index": 0,
-    "score": 0.95
+    "rrfScore": 0.95
   },
   {
     "index": 2,
-    "score": 0.72
+    "rrfScore": 0.72
   }
 ]
 
 要求：
 
 1. index 必须是候选文档的 index。
-2. score 范围必须是 0 到 1。
-3. score 越高表示与用户问题越相关。
+2. rrfScore 范围必须是 0 到 1。
+3. rrfScore 越高表示与用户问题越相关。
 4. 只返回最相关的 ${topN} 个文档。
 `;
 

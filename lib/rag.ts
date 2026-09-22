@@ -13,6 +13,10 @@ import { rewriteQuery } from "./query";
 
 import { keywordSearch } from "./keyword";
 
+import {
+  reciprocalRankFusion,
+} from "./hybrid";
+
 /* import {
   createTrace,
   printTrace,
@@ -123,46 +127,43 @@ export async function answerQuestion(
   question: string,
   filter?: RetrievalFilter
 ) {
-  // =========================
-  // Query Rewrite
-  // =========================
-
+  // 1. Query Rewrite
   const rewrittenQuery =
     await rewriteQuery(question);
 
-  console.log(
-    "\n========== Query Rewrite =========="
-  );
+  console.log("\n========== Query Rewrite ==========");
+  console.log("Original Query:", question);
+  console.log("Rewritten Query:", rewrittenQuery);
+  console.log("===================================\n");
 
-  console.log(
-    "Original Query:",
-    question
-  );
+  // 2. Vector Search
+  const vectorResults =
+    await retrieve(
+      rewrittenQuery,
+      10,
+      0.3,
+      filter
+    );
 
-  console.log(
-    "Rewritten Query:",
-    rewrittenQuery
-  );
+  console.log("\n========== Vector Results ==========");
+  console.log("Count:", vectorResults.length);
+  vectorResults.forEach((item, index) => {
+    console.log(
+      `${index + 1}.`,
+      item.score,
+      item.title,
+      item.section,
+      item.source,
+      `chunk ${item.chunkIndex}`
+    );
+  });
+  console.log("====================================\n");
 
-  console.log(
-    "===================================\n"
-  );
+  /* // 3. 获取当前 filter 范围内的全部文档
+  const allDocuments =
+    await getAllDocuments(filter); */
 
-  // =========================
-  // Vector Search
-  // =========================
-
-  const vectorResults = await retrieve(
-    rewrittenQuery,
-    10,
-    0.3,
-    filter
-  );
-
-  // =========================
-  // Keyword Search
-  // =========================
-
+  // 4. Keyword Search
   const keywordResults =
     await keywordSearch(
       rewrittenQuery,
@@ -170,147 +171,103 @@ export async function answerQuestion(
       filter
     );
 
-  console.log(
-    "\n========== Retrieval Comparison =========="
-  );
+  console.log("\n========== Keyword Results ==========");
+  console.log("Count:", keywordResults.length);
+  keywordResults.forEach((item, index) => {
+    console.log(
+      `${index + 1}.`,
+      item.keywordScore,
+      item.title,
+      item.section,
+      item.source,
+      `chunk ${item.chunkIndex}`
+    );
+  });
+  console.log("=====================================\n");
 
-  console.log(
-    "Vector Results:",
-    vectorResults.length
-  );
-
-  vectorResults.forEach(
-    (item, index) => {
-      console.log(
-        `Vector ${index + 1}:`,
-        item.score,
-        item.title,
-        item.section
-      );
-    }
-  );
-
-  console.log(
-    "\nKeyword Results:",
-    keywordResults.length
-  );
-
-  keywordResults.forEach(
-    (item, index) => {
-      console.log(
-        `Keyword ${index + 1}:`,
-        item.keywordScore,
-        item.title,
-        item.section
-      );
-    }
-  );
-
-  console.log(
-    "==========================================\n"
-  );
-
-  // =========================
-  // Merge Candidates
-  // =========================
-
-  const candidates = [
-    ...vectorResults,
-    ...keywordResults.map((item) => ({
-      ...item,
-      score: item.keywordScore,
-    })),
-  ];
-
-  // =========================
-  // Remove Duplicates
-  // =========================
-
-  const uniqueCandidates =
-    Array.from(
-      new Map(
-        candidates.map((item) => [
-          `${item.source}:${item.chunkIndex}`,
-          item,
-        ])
-      ).values()
+  // 5. Hybrid Search / RRF
+  const hybridResults =
+    reciprocalRankFusion(
+      vectorResults,
+      keywordResults,
+      10
     );
 
-  console.log(
-    "Vector candidates:",
-    vectorResults.length
-  );
+  console.log("\n========== Hybrid Results (RRF) ==========");
+  console.log("Count:", hybridResults.length);
+  hybridResults.forEach((item, index) => {
+    console.log(
+      `${index + 1}.`,
+      item.rrfScore,
+      item.title,
+      item.section,
+      item.source,
+      `chunk ${item.chunkIndex}`
+    );
+  });
+  console.log("==========================================\n");
 
-  console.log(
-    "Keyword candidates:",
-    keywordResults.length
-  );
-
-  console.log(
-    "Unique candidates:",
-    uniqueCandidates.length
-  );
-
-  // =========================
-  // Rerank
-  // =========================
-
+  // 6. Rerank
   const rerankedResults =
     await rerank(
       rewrittenQuery,
-      uniqueCandidates,
+      hybridResults,
       3
     );
 
-  // =========================
-  // Context
-  // =========================
+  console.log("\n========== Reranked Results ==========");
+  console.log("Count:", rerankedResults.length);
+  rerankedResults.forEach((item, index) => {
+    console.log(
+      `${index + 1}.`,
+      "rerank:",
+      item.rerankScore,
+      "rrf:",
+      item.rrfScore,
+      item.title,
+      item.section,
+      item.source,
+      `chunk ${item.chunkIndex}`
+    );
+  });
+  console.log("======================================\n");
 
+  // 7. Context
   const context =
     rerankedResults
-      .map((item, index) => {
-        return `
+      .map(
+        (item, index) => `
 [Source ${index + 1}]
 Source: ${item.source}
 Title: ${item.title}
 Section: ${item.section}
 
 ${item.content}
-`;
-      })
+`
+      )
       .join("\n\n");
 
-  // =========================
-  // LLM
-  // =========================
-
+  // 8. LLM
   const llmResult =
     await generateAnswer(
       question,
       context
     );
 
-  // =========================
-  // Return
-  // =========================
-
   return {
     answer: llmResult.answer,
 
-    sources: rerankedResults.map(
-      (item) => ({
-        source: item.source,
-        title: item.title,
-        section: item.section,
-        score: item.score,
-        rerankScore:
-          item.rerankScore,
-        keywordScore:
-          "keywordScore" in item
-            ? item.keywordScore
-            : undefined,
-      })
-    ),
+    sources:
+      rerankedResults.map(
+        (item) => ({
+          source: item.source,
+          title: item.title,
+          section: item.section,
+          rrfScore: item.rrfScore,
+          rerankScore:
+            item.rerankScore,
+        })
+      ),
 
     debug: {
       rewrittenQuery,
@@ -321,8 +278,8 @@ ${item.content}
       keywordResults:
         keywordResults.length,
 
-      uniqueCandidates:
-        uniqueCandidates.length,
+      hybridResults:
+        hybridResults.length,
 
       usage: llmResult.usage,
     },

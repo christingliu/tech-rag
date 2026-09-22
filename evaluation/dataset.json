@@ -1,0 +1,102 @@
+[
+  {
+    "id": "q001",
+    "question": "React 函数组件有什么基本要求？",
+    "expectedSources": ["react/components.md"]
+  },
+  {
+    "id": "q002",
+    "question": "Props 是什么？它在父组件和子组件之间起什么作用？",
+    "expectedSources": ["react/props.md"]
+  },
+  {
+    "id": "q003",
+    "question": "useState 更新状态后会发生什么？",
+    "expectedSources": ["react/hooks.md", "reactstate.md"]
+  },
+  {
+    "id": "q004",
+    "question": "useEffect 返回的函数什么时候执行？",
+    "expectedSources": ["react/hooks.md"]
+  },
+  {
+    "id": "q005",
+    "question": "useRef 返回的对象有什么特点？",
+    "expectedSources": ["react/refs.md"]
+  },
+  {
+    "id": "q006",
+    "question": "React 中如何让组件接收标签内部传入的内容？",
+    "expectedSources": ["react/props.md"]
+  },
+  {
+    "id": "q007",
+    "question": "如果一个值变化后不希望导致组件重新渲染，应该考虑使用什么？",
+    "expectedSources": ["react/refs.md"]
+  },
+  {
+    "id": "q008",
+    "question": "一个组件需要跨很多层级共享主题或当前用户信息，应该使用什么机制？",
+    "expectedSources": ["react/context.md"]
+  },
+  {
+    "id": "q009",
+    "question": "React 如何避免一个组件树因为局部状态频繁变化而全部重新渲染？",
+    "expectedSources": ["react/performance.md"]
+  },
+  {
+    "id": "q010",
+    "question": "什么时候应该使用 React.memo、useMemo 和 useCallback？",
+    "expectedSources": ["react/memo.md", "react/performance.md"]
+  },
+  {
+    "id": "q011",
+    "question": "Context 和 Props 都可以传递数据，它们分别适合什么场景？",
+    "expectedSources": ["react/context.md", "react/props.md"]
+  },
+  {
+    "id": "q012",
+    "question": "state 和 ref 都可以保存数据，它们最重要的区别是什么？",
+    "expectedSources": ["react/state.md", "rreact/refs.md"]
+  },
+  {
+    "id": "q013",
+    "question": "React.memo、useMemo 和 useCallback 分别缓存什么？",
+    "expectedSources": ["react/memo.md"]
+  },
+  {
+    "id": "q014",
+    "question": "React 重新渲染是不是意味着整个页面都会重新创建？",
+    "expectedSources": ["react/rendering.md"]
+  },
+  {
+    "id": "q015",
+    "question": "为什么列表渲染时不推荐使用数组下标作为 key？",
+    "expectedSources": ["react/performance.md"]
+  },
+  {
+    "id": "q016",
+    "question": "多个组件需要共享同一份状态时，React 推荐怎么组织这些状态？",
+    "expectedSources": ["react/state.md", "react/props.md"]
+  },
+  {
+    "id": "q017",
+    "question": "为什么 Server Components 可以减少发送到浏览器的 JavaScript？",
+    "expectedSources": ["react/server-components.md"]
+  },
+  {
+    "id": "q018",
+    "question": "React Query 的 staleTime 和 cacheTime 分别是什么？",
+    "expectedSources": []
+  },
+  {
+    "id": "q019",
+    "question": "React 中 useReducer 和 Redux 有什么区别？",
+    "expectedSources": []
+  },
+  {
+    "id": "q020",
+    "question": "React Server Components 中如何使用 Suspense 流式传输 HTML？",
+    "expectedSources": []
+  }
+]
