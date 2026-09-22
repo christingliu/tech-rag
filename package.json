@@ -11,7 +11,8 @@
     "eval": "tsx scripts/eval.ts",
     "test-keyword": "tsx scripts/test-keyword.ts",
     "test": "tsx --test lib/hybrid.test.ts",
-    "evaluate": "tsx evaluation/run.ts"
+    "evaluate": "tsx evaluation/run.ts",
+    "test:error": "tsx evaluation/error-test.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.18.0",
