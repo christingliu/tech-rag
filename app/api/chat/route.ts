@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { answerQuestion, RetrieveFilter } from "@/lib/rag";
+import { answerQuestion, RetrievalFilter } from "@/lib/rag";
 
-function sanitizeFilter(input: unknown): RetrieveFilter | undefined {
+function sanitizeFilter(input: unknown): RetrievalFilter | undefined {
   if (typeof input !== "object" || input === null) {
     return undefined;
   }
 
-  const filter: RetrieveFilter = {};
+  const filter: RetrievalFilter = {};
 
   for (const key of ["title", "source", "section"] as const) {
     const value = (input as Record<string, unknown>)[key];

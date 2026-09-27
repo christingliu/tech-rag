@@ -1,0 +1,133 @@
+.debug-page {
+    min-height: 100vh;
+    padding: 40px;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+  
+  .debug-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  
+  .debug-header h1 {
+    margin: 0;
+    font-size: 28px;
+  }
+  
+  .debug-header p {
+    margin-top: 8px;
+    color: #64748b;
+  }
+  
+  .debug-header button {
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .debug-header button:hover {
+    background: #1d4ed8;
+  }
+  
+  .metrics-grid {
+    display: grid;
+    grid-template-columns:
+      repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  
+  .metric-card {
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 4%);
+  }
+  
+  .metric-label {
+    color: #64748b;
+    font-size: 14px;
+  }
+  
+  .metric-value {
+    margin-top: 8px;
+    font-size: 28px;
+    font-weight: 700;
+  }
+  
+  .debug-section {
+    margin-bottom: 32px;
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+  }
+  
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  .section-header h2 {
+    margin: 0;
+  }
+  
+  .section-header span {
+    color: #64748b;
+    font-size: 14px;
+  }
+  
+  .latency-table {
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  
+  .latency-row {
+    display: grid;
+    grid-template-columns:
+      1fr 160px 160px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .latency-row:last-child {
+    border-bottom: 0;
+  }
+  
+  .latency-head {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  
+  .metrics-json {
+    overflow-x: auto;
+    margin: 0;
+    padding: 20px;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  
+  .debug-error {
+    margin-bottom: 24px;
+    padding: 14px 16px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fef2f2;
+    color: #b91c1c;
+  }

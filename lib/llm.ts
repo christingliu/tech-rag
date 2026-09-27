@@ -10,11 +10,16 @@ export async function generateAnswer(
 请严格根据下面提供的 Context 回答问题。
 
 规则：
+
 1. 只能使用 Context 中的信息。
 2. 如果 Context 没有答案，请明确告诉用户知识库中没有找到相关信息。
 3. 不要编造不存在的信息。
 4. 回答尽量简洁、准确。
-5. 回答最后列出参考来源。
+5. 如果一个结论来自某个 Source，请在对应句子后添加 [Source N]。
+6. Source N 必须来自 Context 中实际存在的 Source。
+7. 不要编造不存在的 Source。
+8. 如果一个结论由多个 Source 支持，可以添加多个引用，例如 [Source 1][Source 2]。
+9. 不要在回答最后重复完整的来源列表，来源由系统单独展示。
 
 Context:
 
@@ -49,4 +54,53 @@ ${question}
         }
       : null,
   }
+}
+
+export async function generateAnswerStream(
+  question: string,
+  context: string
+) {
+  console.log(context,'context');
+  console.log(question,'question');
+  const prompt = `
+你是一个个人技术知识库助手。
+
+请严格根据下面提供的 Context 回答问题。
+
+规则：
+
+1. 只能使用 Context 中的信息。
+2. 如果 Context 没有答案，请明确告诉用户知识库中没有找到相关信息。
+3. 不要编造不存在的信息。
+4. 回答尽量简洁、准确。
+5. 如果某个结论来自某个 Source，请在对应句子后添加 [Source N]。
+6. Source N 必须来自 Context 中实际存在的 Source。
+7. 不要编造不存在的 Source。
+8. 回答最后不要重复列出完整来源，来源信息由系统单独展示。
+
+
+Context:
+
+${context}
+
+Question:
+
+${question}
+`;
+
+  const stream =
+    await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+
+      stream: true,
+    });
+
+  return stream;
 }

@@ -44,3 +44,5 @@ body {
 .dark .prose-custom :where(pre) {
   background: rgba(255, 255, 255, 0.08);
 }
+
+@import "./debug/index.css";

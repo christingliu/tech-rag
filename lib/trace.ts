@@ -1,13 +1,27 @@
 export interface RagTrace {
+  requestId: string;
+
   query: string;
+
+  startedAt: number;
 
   embedding?: {
     model: string;
     latencyMs: number;
   };
 
+  rewrite?: {
+    latencyMs: number;
+    fallback: boolean;
+  };
+
   retrieval?: {
     topK: number;
+    candidateCount: number;
+    latencyMs: number;
+  };
+
+  keywordRetrieval?: {
     candidateCount: number;
     latencyMs: number;
   };
@@ -33,18 +47,97 @@ export interface RagTrace {
   llm?: {
     model: string;
     latencyMs: number;
-    debug:{
-        trace: string;
-        usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null;
-    }
+  };
+
+  cache?: {
+    hit: boolean;
   };
 
   totalLatencyMs?: number;
+
+  status?: "success" | "error";
+
+  error?: {
+    stage?: string;
+    message: string;
+  };
 }
 
-export function createTrace(query: string): RagTrace {
+import {
+  recordRagTrace,
+} from "./metrics";
+
+export function createRequestId(): string {
+  return `rag_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+export function createRagTrace(
+  query: string,
+  requestId?: string
+): RagTrace {
   return {
+    requestId:
+      requestId ?? createRequestId(),
+
     query,
+
+    startedAt: Date.now(),
+
+    status: "success",
+  };
+}
+
+export function finishRagTrace(
+  trace: RagTrace
+) {
+  trace.totalLatencyMs =
+    Date.now() - trace.startedAt;
+
+  trace.status = "success";
+
+  recordRagTrace(trace);
+
+  logRagTrace(trace);
+}
+
+export function failRagTrace(
+  trace: RagTrace,
+  error: unknown,
+  stage?: string
+) {
+  trace.totalLatencyMs =
+    Date.now() - trace.startedAt;
+
+  trace.status = "error";
+
+  trace.error = {
+    stage,
+
+    message:
+      error instanceof Error
+        ? error.message
+        : "Unknown error",
+  };
+
+  recordRagTrace(trace);
+
+  console.error(
+    "[RAG TRACE ERROR]",
+    JSON.stringify(trace)
+  );
+}
+
+export function startStageTimer() {
+  const startedAt = performance.now();
+
+  return {
+    end() {
+      return Math.round(
+        performance.now() - startedAt
+      );
+    },
   };
 }
 
@@ -124,7 +217,7 @@ export function printTrace(trace: RagTrace) {
   if (trace.llm) {
     console.log("\n[LLM]");
     console.log("Model:", trace.llm.model);
-    console.log("debug:", trace.llm.debug);
+   // console.log("debug:", trace.llm.debug);
     console.log(
       "Latency:",
       `${trace.llm.latencyMs}ms`
@@ -140,4 +233,43 @@ export function printTrace(trace: RagTrace) {
   }
 
   console.log("\n===============================\n");
+}
+
+export function logRagTrace(
+  trace: RagTrace
+) {
+  console.log(
+    "[RAG TRACE]",
+    JSON.stringify({
+      requestId: trace.requestId,
+      query: trace.query,
+
+      rewrite: trace.rewrite,
+
+      embedding: trace.embedding,
+
+      retrieval: trace.retrieval,
+
+      keywordRetrieval:
+        trace.keywordRetrieval,
+
+      scoreFilter:
+        trace.scoreFilter,
+
+      rerank: trace.rerank,
+
+      context: trace.context,
+
+      llm: trace.llm,
+
+      cache: trace.cache,
+
+      totalLatencyMs:
+        trace.totalLatencyMs,
+
+      status: trace.status,
+
+      error: trace.error,
+    })
+  );
 }
