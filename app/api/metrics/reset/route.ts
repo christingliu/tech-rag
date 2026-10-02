@@ -1,8 +1,10 @@
 import {
     resetRagMetrics,
   } from "@/lib/metrics";
-  
-  export async function POST() {
+  import { authenticateRequest } from "@/lib/auth";
+
+  export async function POST(request: Request) {
+
     resetRagMetrics();
   
     return Response.json({

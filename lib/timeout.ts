@@ -1,22 +1,28 @@
-export function withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    message: string
-  ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(message));
-      }, timeoutMs);
-  
-      promise.then(
-        (value) => {
-          clearTimeout(timer);
-          resolve(value);
-        },
-        (error) => {
-          clearTimeout(timer);
-          reject(error);
-        }
-      );
-    });
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T> {
+  let timer: NodeJS.Timeout;
+
+  const timeoutPromise =
+    new Promise<never>(
+      (_, reject) => {
+        timer = setTimeout(() => {
+          reject(
+            new Error(
+              `Operation timed out after ${timeoutMs}ms`
+            )
+          );
+        }, timeoutMs);
+      }
+    );
+
+  try {
+    return await Promise.race([
+      promise,
+      timeoutPromise,
+    ]);
+  } finally {
+    clearTimeout(timer!);
   }
+}

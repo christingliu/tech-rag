@@ -46,9 +46,148 @@ export interface RagMetrics {
     totalLatencies: [],
   };
 
+  interface IngestionMetrics {
+    runs: number;
+    failures: number;
+    filesProcessed: number;
+  
+    chunksSkipped: number;
+    chunksUpserted: number;
+    chunksDeleted: number;
+  
+    embeddingCalls: number;
+    embeddingFailures: number;
+    embeddingTokens: number;
+  
+    totalDurationMs: number;
+  }
+
+  const ingestionMetrics: IngestionMetrics = {
+    runs: 0,
+    failures: 0,
+  
+    filesProcessed: 0,
+  
+    chunksSkipped: 0,
+    chunksUpserted: 0,
+    chunksDeleted: 0,
+  
+    embeddingCalls: 0,
+    embeddingFailures: 0,
+    embeddingTokens: 0,
+  
+    totalDurationMs: 0,
+  };
+  interface LlmMetrics {
+    calls: number;
+  
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  
+    failures: number;
+  }
+
+  const llmMetrics: LlmMetrics = {
+    calls: 0,
+  
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+  
+    failures: 0,
+  };
+
+  export interface EstimatedCost {
+    embedding: number;
+    llmInput: number;
+    llmOutput: number;
+    total: number;
+  }
+
   import type {
     RagTrace,
   } from "./trace";
+
+  export function recordEmbeddingUsage(
+    tokens: number
+  ) {
+    ingestionMetrics.embeddingTokens +=
+      tokens;
+  }
+
+  export function recordLlmCall(
+    usage: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    }
+  ) {
+    llmMetrics.calls++;
+  
+    llmMetrics.promptTokens +=
+      usage.promptTokens;
+  
+    llmMetrics.completionTokens +=
+      usage.completionTokens;
+  
+    llmMetrics.totalTokens +=
+      usage.totalTokens;
+  }
+
+  export function recordLlmFailure() {
+    llmMetrics.failures++;
+  }
+
+  export function getLlmMetrics() {
+    return {
+      ...llmMetrics,
+    };
+  }
+
+  export function recordIngestionRun(
+    durationMs: number
+  ) {
+    ingestionMetrics.runs++;
+    ingestionMetrics.totalDurationMs +=
+      durationMs;
+  }
+
+  export function recordIngestionFailure() {
+    ingestionMetrics.failures++;
+  }
+  
+  export function recordIngestionFile() {
+    ingestionMetrics.filesProcessed++;
+  }
+  
+  export function recordIngestionSkip() {
+    ingestionMetrics.chunksSkipped++;
+  }
+  
+  export function recordIngestionUpsert() {
+    ingestionMetrics.chunksUpserted++;
+  }
+  
+  export function recordIngestionDelete(
+    count = 1
+  ) {
+    ingestionMetrics.chunksDeleted += count;
+  }
+  
+  export function recordEmbeddingCall() {
+    ingestionMetrics.embeddingCalls++;
+  }
+  
+  export function recordEmbeddingFailure() {
+    ingestionMetrics.embeddingFailures++;
+  }
+
+  export function getIngestionMetrics() {
+    return {
+      ...ingestionMetrics,
+    };
+  }
   
   export function recordRagTrace(
     trace: RagTrace

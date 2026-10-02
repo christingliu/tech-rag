@@ -14,6 +14,8 @@ import {
   validateCitations,
 } from "@/lib/citation";
 
+import { authenticateRequest } from "@/lib/auth";
+
 function encodeSSE(
   event: string,
   data: unknown
@@ -27,6 +29,16 @@ function encodeSSE(
 export async function POST(
   request: Request
 ) {
+  /* if (!authenticateRequest(request)) {
+    return Response.json(
+      {
+        error: "Unauthorized",
+      },
+      {
+        status: 401,
+      }
+    );
+  } */
   const requestId = createRequestId();
   try {
     const body =

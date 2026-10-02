@@ -78,7 +78,7 @@ export default function DebugPage() {
       await fetch(
         "/api/metrics/reset",
         {
-          method: "POST",
+          method: "POST"
         }
       );
   

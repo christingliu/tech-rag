@@ -67,19 +67,19 @@ JSON 格式：
 [
   {
     "index": 0,
-    "rrfScore": 0.95
+    "rerankScore": 0.95
   },
   {
     "index": 2,
-    "rrfScore": 0.72
+    "rerankScore": 0.72
   }
 ]
 
 要求：
 
 1. index 必须是候选文档的 index。
-2. rrfScore 范围必须是 0 到 1。
-3. rrfScore 越高表示与用户问题越相关。
+2. rerankScore 范围必须是 0 到 1。
+3. rerankScore 越高表示与用户问题越相关。
 4. 只返回最相关的 ${topN} 个文档。
 `;
 
@@ -101,11 +101,11 @@ JSON 格式：
   try {
     const rankings = JSON.parse(content) as {
       index: number;
-      score: number;
+      rerankScore: number;
     }[];
 
     return rankings
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => b.rerankScore - a.rerankScore)
       .map((item) => {
         const document = documents[item.index];
 
@@ -115,7 +115,7 @@ JSON 格式：
 
         return {
           ...document,
-          rerankScore: item.score,
+          rerankScore: item.rerankScore,
         };
       })
       .filter(

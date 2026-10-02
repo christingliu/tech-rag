@@ -61,6 +61,12 @@ export interface RagTrace {
     stage?: string;
     message: string;
   };
+
+  multiQuery?:{
+    count?:number;
+    latencyMs?:number;
+    fallback?:boolean;
+  }
 }
 
 import {

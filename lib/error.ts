@@ -5,7 +5,9 @@ export type RagErrorStage =
   | "keyword"
   | "hybrid"
   | "rerank"
-  | "llm";
+  | "llm"
+  | "hyde"
+  | "multi-query";
 
 export class RagError extends Error {
   stage: RagErrorStage;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { answerQuestion, RetrievalFilter } from "@/lib/rag";
+import { authenticateRequest } from "@/lib/auth";
 
 function sanitizeFilter(input: unknown): RetrievalFilter | undefined {
   if (typeof input !== "object" || input === null) {
@@ -20,6 +21,16 @@ function sanitizeFilter(input: unknown): RetrievalFilter | undefined {
 }
 
 export async function POST(request: NextRequest) {
+  if (!authenticateRequest(request)) {
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+      },
+      {
+        status: 401,
+      }
+    );
+  }
   try {
     const { question, filter } = await request.json();
 

@@ -6,12 +6,24 @@ export interface Chunk {
     title: string;
     section: string;
     chunkIndex: number;
+    contentHash: string;
   };
 }
 
 interface Section {
   headingPath: string[];
   content: string;
+}
+
+import crypto from "crypto";
+
+function createContentHash(
+  content: string
+): string {
+  return crypto
+    .createHash("sha256")
+    .update(content)
+    .digest("hex");
 }
 
 /* 
@@ -68,6 +80,7 @@ export function splitText(
           title,
           section: sectionName,
           chunkIndex,
+          contentHash:createContentHash(content)
         },
       });
 

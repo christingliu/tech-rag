@@ -1,4 +1,10 @@
 import { openai } from "./openai";
+import {
+  recordLlmCall,
+  recordLlmFailure,
+} from "./metrics";
+import { error } from "console";
+import { withTimeout } from "./timeout";
 
 export async function generateAnswer(
   question: string,
@@ -30,7 +36,8 @@ Question:
 ${question}
 `;
 
-  const response = await openai.chat.completions.create({
+ try{
+  const response = await withTimeout(openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -38,7 +45,24 @@ ${question}
         content: prompt,
       },
     ],
-  });
+  }),1000);
+
+  const usage =
+  response.usage;
+
+    if (usage) {
+      recordLlmCall({
+        promptTokens:
+          usage.prompt_tokens ?? 0,
+
+        completionTokens:
+          usage.completion_tokens ?? 0,
+
+        totalTokens:
+          usage.total_tokens ?? 0,
+      });
+    }
+
   return {
     answer:
       response.choices[0]?.message?.content ?? "",
@@ -54,6 +78,11 @@ ${question}
         }
       : null,
   }
+ }catch(error){
+  recordLlmFailure();
+  throw error;
+ } 
+ 
 }
 
 export async function generateAnswerStream(
@@ -88,8 +117,9 @@ Question:
 ${question}
 `;
 
-  const stream =
-    await openai.chat.completions.create({
+  try{
+    const stream =
+    await withTimeout(openai.chat.completions.create({
       model: "gpt-4o-mini",
 
       messages: [
@@ -100,7 +130,11 @@ ${question}
       ],
 
       stream: true,
-    });
+    }),30000);
 
   return stream;
+  }catch(error){
+    recordLlmFailure();
+  throw error;
+  }
 }

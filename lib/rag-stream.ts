@@ -55,17 +55,26 @@ import type {
   RagTrace,
 } from "./trace";
 
+import {
+  generateMultiQueries,
+  mergeMultiQueryResults,
+} from "./multi-query";
 
 export async function prepareRagContext(
   question: string,
   filter?: RetrievalFilter,
   trace?: RagTrace
 ) {
+  // =================================================
+  // 1. Query Rewrite
+  // =================================================
+
   let rewrittenQuery = question;
 
   let queryRewriteFallback = false;
 
-  const rewriteTimer = startStageTimer();
+  const rewriteTimer =
+    startStageTimer();
 
   try {
     rewrittenQuery =
@@ -105,130 +114,384 @@ export async function prepareRagContext(
     if (trace) {
       trace.rewrite = {
         latencyMs,
-        fallback: false,
+        fallback: true,
       };
     }
   }
 
-  let vectorResults:
-    Awaited<ReturnType<typeof retrieve>> = [];
+  // =================================================
+  // 2. Multi Query
+  // =================================================
 
-  let vectorSearchFailed = false;
+  let multiQueries: string[] = [
+    rewrittenQuery,
+  ];
 
-  const retrievalTimer = startStageTimer();
+  let multiQueryFallback = false;
+
+  const multiQueryTimer =
+    startStageTimer();
 
   try {
-    vectorResults =
-      await retrieve(
+    const generatedQueries =
+      await generateMultiQueries(
         rewrittenQuery,
-        10,
-        0.3,
-        filter
+        3
       );
-      const latencyMs = retrievalTimer.end();
-      if(trace){
-        trace.retrieval = {
-          topK: 10,
-          candidateCount:
-            vectorResults.length,
-          latencyMs,
-        };
+
+    if (
+      Array.isArray(generatedQueries) &&
+      generatedQueries.length > 0
+    ) {
+      multiQueries =
+        generatedQueries;
+    } else {
+      multiQueryFallback = true;
+    }
+
+    const latencyMs =
+      multiQueryTimer.end();
+
+    console.log(
+      "[RAG Stage] Multi Query:",
+      {
+        latencyMs,
+        queries: multiQueries,
+        fallback:
+          multiQueryFallback,
       }
-      
-  } catch (error) {
-    vectorSearchFailed = true;
-
-    const latencyMs = retrievalTimer.end();
-
-    console.error(
-      "[RAG Stream] Vector search failed:",
-      error
     );
 
-  }
-
-  let keywordResults:
-    Awaited<ReturnType<typeof keywordSearch>> = [];
-
-  let keywordSearchFailed = false;
-
-  const keywordTimer = startStageTimer();
-  try {
-    keywordResults =
-      await keywordSearch(
-        rewrittenQuery,
-        10,
-        filter
-      );
-    const latencyMs = keywordTimer.end();
-    if(trace){
-      trace.keywordRetrieval = {
-        candidateCount:
-          keywordResults.length,
+    if (trace) {
+      trace.multiQuery = {
+        count:
+          multiQueries.length,
         latencyMs,
+        fallback:
+          multiQueryFallback,
       };
     }
-  
   } catch (error) {
-    keywordSearchFailed = true;
-    const latencyMs = keywordTimer.end();
+    const latencyMs =
+      multiQueryTimer.end();
 
     console.error(
-      "[RAG Stream] Keyword search failed:",
-      error
-    );
-
-    /* if(trace){
-      trace.keywordRetrieval = {
-        candidateCount:
-          keywordResults.length,
+      "[RAG Stage] Multi Query failed:",
+      {
         latencyMs,
-      }; */
+        error,
+      }
+    );
+
+    multiQueries = [
+      rewrittenQuery,
+    ];
+
+    multiQueryFallback = true;
+
+    if (trace) {
+      trace.multiQuery = {
+        count: 1,
+        latencyMs,
+        fallback: true,
+      };
+    }
   }
 
-  if (
-    vectorSearchFailed &&
-    keywordSearchFailed
-  ) {
-    throw new RagError(
-      "hybrid",
-      "Both vector search and keyword search failed"
+  // =================================================
+  // 3. Multi Query Retrieval
+  //
+  // 一个 Query 内完成：
+  //
+  // Vector Search
+  //      +
+  // Keyword Search
+  //      ↓
+  // RRF
+  //
+  // 然后进入下一个 Query
+  // =================================================
+
+  const retrievalTimer =
+    startStageTimer();
+
+  const retrievalResults: Array<
+    Awaited<
+      ReturnType<
+        typeof reciprocalRankFusion
+      >
+    >
+  > = [];
+
+  let vectorSuccessCount = 0;
+  let vectorFailureCount = 0;
+
+  let keywordSuccessCount = 0;
+  let keywordFailureCount = 0;
+
+  for (const query of multiQueries) {
+    console.log(
+      "\n[RAG Stage] Processing Query:",
+      query
+    );
+
+    let vectorResults:
+      Awaited<
+        ReturnType<typeof retrieve>
+      > = [];
+
+    let keywordResults:
+      Awaited<
+        ReturnType<typeof keywordSearch>
+      > = [];
+
+    let vectorSearchFailed = false;
+
+    let keywordSearchFailed = false;
+
+    // -------------------------------------------------
+    // Vector Search
+    // -------------------------------------------------
+
+    try {
+      vectorResults =
+        await retrieve(
+          query,
+          10,
+          0.3,
+          filter
+        );
+
+      vectorSuccessCount++;
+    } catch (error) {
+      vectorSearchFailed = true;
+
+      vectorFailureCount++;
+
+      console.error(
+        "[RAG] Vector search failed:",
+        {
+          query,
+          error,
+        }
+      );
+    }
+
+    // -------------------------------------------------
+    // Keyword Search
+    // -------------------------------------------------
+
+    try {
+      keywordResults =
+        await keywordSearch(
+          query,
+          10,
+          filter
+        );
+
+      keywordSuccessCount++;
+    } catch (error) {
+      keywordSearchFailed = true;
+
+      keywordFailureCount++;
+
+      console.error(
+        "[RAG] Keyword search failed:",
+        {
+          query,
+          error,
+        }
+      );
+    }
+
+    // -------------------------------------------------
+    // 当前 Query 两种 Retrieval 都失败
+    // -------------------------------------------------
+
+    if (
+      vectorSearchFailed &&
+      keywordSearchFailed
+    ) {
+      console.error(
+        "[RAG] Both retrieval methods failed:",
+        {
+          query,
+        }
+      );
+
+      continue;
+    }
+
+    // -------------------------------------------------
+    // 当前 Query RRF
+    // -------------------------------------------------
+
+    let hybridResults;
+
+    try {
+      hybridResults =
+        reciprocalRankFusion(
+          vectorResults,
+          keywordResults,
+          10
+        );
+    } catch (error) {
+      console.error(
+        "[RAG] RRF failed:",
+        {
+          query,
+          error,
+        }
+      );
+
+      continue;
+    }
+
+    retrievalResults.push(
+      hybridResults
+    );
+
+    console.log(
+      "[RAG Stage] Query Retrieval Complete:",
+      {
+        query,
+
+        vectorResults:
+          vectorResults.length,
+
+        keywordResults:
+          keywordResults.length,
+
+        hybridResults:
+          hybridResults.length,
+      }
     );
   }
 
-  let hybridResults;
+  const retrievalLatencyMs =
+    retrievalTimer.end();
+
+  // =================================================
+  // 4. Merge Multi Query Results
+  // =================================================
+
+  let hybridResults=[];
 
   try {
     hybridResults =
-      reciprocalRankFusion(
-        vectorResults,
-        keywordResults,
-        10
-      );
+      mergeMultiQueryResults(
+        retrievalResults
+      ).slice(0, 10);
   } catch (error) {
     throw new RagError(
       "hybrid",
-      "Hybrid search failed",
+      "Multi-query result merge failed",
       error
     );
   }
 
+  // =================================================
+  // 5. Retrieval Trace
+  // =================================================
 
-  if (hybridResults.length === 0) {
+  if (trace) {
+    trace.retrieval = {
+      topK: 10,
+
+      candidateCount:
+        hybridResults.length,
+
+      latencyMs:
+        retrievalLatencyMs,
+    };
+
+    trace.keywordRetrieval = {
+      candidateCount:
+        keywordSuccessCount,
+
+      latencyMs:
+        retrievalLatencyMs,
+    };
+  }
+
+  console.log(
+    "\n[RAG Stage] Multi Query Retrieval:",
+    {
+      queries:
+        multiQueries.length,
+
+      vectorSuccess:
+        vectorSuccessCount,
+
+      vectorFailed:
+        vectorFailureCount,
+
+      keywordSuccess:
+        keywordSuccessCount,
+
+      keywordFailed:
+        keywordFailureCount,
+
+      mergedResults:
+        hybridResults.length,
+
+      latencyMs:
+        retrievalLatencyMs,
+    }
+  );
+
+  // =================================================
+  // 6. All Retrieval Failed
+  // =================================================
+
+  if (
+    retrievalResults.length === 0
+  ) {
+    throw new RagError(
+      "hybrid",
+      "All multi-query retrievals failed"
+    );
+  }
+
+  // =================================================
+  // 7. Empty Retrieval
+  // =================================================
+
+  if (
+    hybridResults.length === 0
+  ) {
     return {
       rewrittenQuery,
+
+      multiQueries,
+
       queryRewriteFallback,
-      vectorResults,
-      keywordResults,
+
+      multiQueryFallback,
+
+      vectorResults: [],
+
+      keywordResults: [],
+
       hybridResults,
+
       rerankedResults: [],
+
       rerankFallback: false,
     };
   }
 
+  // =================================================
+  // 8. Rerank
+  // =================================================
+
   let rerankedResults;
+
   let rerankFallback = false;
-  const rerankTimer = startStageTimer();
+
+  const rerankTimer =
+    startStageTimer();
+
   try {
     rerankedResults =
       await rerank(
@@ -236,21 +499,29 @@ export async function prepareRagContext(
         hybridResults,
         3
       );
-    const latencyMs = rerankTimer.end();
-    if(trace){
+
+    const latencyMs =
+      rerankTimer.end();
+
+    if (trace) {
       trace.rerank = {
         model: "gpt-4o-mini",
+
         before:
           hybridResults.length,
+
         after:
           rerankedResults.length,
+
         latencyMs,
       };
     }
-  
   } catch (error) {
     rerankFallback = true;
-    const latencyMs = rerankTimer.end();
+
+    const latencyMs =
+      rerankTimer.end();
+
     console.error(
       "[RAG Stream] Rerank failed:",
       error
@@ -263,29 +534,47 @@ export async function prepareRagContext(
           ...item,
           rerankScore: null,
         }));
-    
-      if(trace){
-        trace.rerank = {
-          model: "gpt-4o-mini",
-          before:
-            hybridResults.length,
-          after:
-            rerankedResults.length,
-          latencyMs,
-        };
-      }
+
+    if (trace) {
+      trace.rerank = {
+        model: "gpt-4o-mini",
+
+        before:
+          hybridResults.length,
+
+        after:
+          rerankedResults.length,
+
+        latencyMs,
+      };
+    }
   }
+
+  // =================================================
+  // 9. Final Result
+  // =================================================
 
   return {
     rewrittenQuery,
+
+    multiQueries,
+
     queryRewriteFallback,
-    vectorResults,
-    keywordResults,
+
+    multiQueryFallback,
+
+    vectorResults: [],
+
+    keywordResults: [],
+
     hybridResults,
+
     rerankedResults,
+
     rerankFallback,
   };
 }
+
 
 
 
@@ -420,6 +709,9 @@ export async function answerQuestionStream(
       debug: {
         rewrittenQuery:
           ragResult.rewrittenQuery,
+
+        multiQueries:
+          ragResult.multiQueries,
 
         queryRewriteFallback:
           ragResult.queryRewriteFallback,
@@ -600,6 +892,9 @@ ${item.content}
     debug: {
       rewrittenQuery:
         ragResult.rewrittenQuery,
+
+      multiQueries:
+        ragResult.multiQueries,
 
       queryRewriteFallback:
         ragResult.queryRewriteFallback,
