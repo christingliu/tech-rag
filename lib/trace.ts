@@ -67,6 +67,16 @@ export interface RagTrace {
     latencyMs?:number;
     fallback?:boolean;
   }
+
+  hyde?:{
+    latencyMs?:number;
+    fallback?:boolean;
+  }
+
+  route?:
+    | "direct"
+    | "vector"
+    | "hybrid"
 }
 
 import {

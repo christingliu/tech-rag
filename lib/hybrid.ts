@@ -4,6 +4,15 @@ export interface HybridDocument {
   title: string;
   section: string;
   chunkIndex: number;
+
+  /**
+   * Parent-Child 关系字段（可选）。
+   *
+   * Vector / Keyword 检索从 payload 带回，
+   * RRF spread 时透传给下游 expandParents。
+   */
+  parentId?: string;
+  parentContent?: string;
 }
 
 export interface HybridResult

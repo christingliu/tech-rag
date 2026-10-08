@@ -2,9 +2,13 @@ import {
   createRequestId,
 } from "@/lib/trace";
 
+/* import {
+  answerQuestionStream,
+} from "@/lib/rag-stream"; */
+
 import {
   answerQuestionStream,
-} from "@/lib/rag-stream";
+} from "@/lib/rag-hyde";
 
 import {
   RagError,

@@ -1,11 +1,42 @@
-export interface Chunk {
+import crypto from "crypto";
+
+export interface ParentChunk {
+  id: string;
+
   content: string;
 
   metadata: {
     source: string;
     title: string;
     section: string;
+    headingPath: string[];
+    contentHash: string;
+  };
+}
+
+export interface Chunk {
+  id: string;
+
+  content: string;
+
+  metadata: {
+    source: string;
+    title: string;
+    section: string;
+    headingPath: string[];
+
     chunkIndex: number;
+
+    /**
+     * Parent identity.
+     *
+     * Child Retrieval 命中 Child 后，
+     * 通过 parentId 找回完整 Parent Context。
+     */
+    parentId: string;
+
+    parentContent: string;
+
     contentHash: string;
   };
 }
@@ -15,8 +46,9 @@ interface Section {
   content: string;
 }
 
-import crypto from "crypto";
-
+/**
+ * Content Hash
+ */
 function createContentHash(
   content: string
 ): string {
@@ -26,76 +58,249 @@ function createContentHash(
     .digest("hex");
 }
 
-/* 
- 基于你现在的配置（limit=5, scoreThreshold=0.3, chunkSize=500），如果让我给一个调优顺序：
-1.先建评估集（20 条 Q&A），跑 baseline，记下 Recall@5
-2.加 metadata filter（前面那条消息讲过）→ 通常能把 Precision 提一截，因为缩小了搜索空间
-3.调 scoreThreshold：从 0.3 起，每次 +0.1，看 Recall@5 什么时候开始掉，选"掉之前"的最大值
-4.调 limit：5→8→10，看 Recall@5 还能不能涨，能涨就涨，涨不动就回到 5
-5.回头看分块：如果上面都调不动了，问题在 chunk.ts，调 chunkSize 和 overlap
-*/
+/**
+ * Normalize heading path。
+ *
+ * 避免因为多余空格导致同一个 Section
+ * 生成不同的 Parent ID。
+ */
+function normalizeHeadingPath(
+  headingPath: string[]
+): string[] {
+  return headingPath.map(
+    (heading) => heading.trim()
+  );
+}
 
+/**
+ * 创建稳定的 Parent ID。
+ *
+ * Parent identity 不依赖 chunkIndex。
+ *
+ * 同一个：
+ *
+ * source + headingPath + content
+ *
+ * 会得到相同 Parent ID。
+ */
+function createParentId(
+  source: string,
+  headingPath: string[],
+  content: string
+): string {
+  const normalizedPath =
+    normalizeHeadingPath(
+      headingPath
+    );
+
+  const identity = [
+    "parent",
+    source,
+    normalizedPath.join(" > "),
+    createContentHash(content),
+  ].join(":");
+
+  return crypto
+    .createHash("sha256")
+    .update(identity)
+    .digest("hex");
+}
+
+/**
+ * 创建稳定 Child ID。
+ *
+ * Child ID 不使用全局 chunkIndex，
+ * 避免前面的 Section 增删导致整个文档
+ * 后续 Child ID 漂移。
+ */
+function createChildId(
+  source: string,
+  parentId: string,
+  childIndex: number,
+  content: string
+): string {
+  const identity = [
+    "child",
+    source,
+    parentId,
+    childIndex,
+    createContentHash(content),
+  ].join(":");
+
+  return crypto
+    .createHash("sha256")
+    .update(identity)
+    .digest("hex");
+}
+
+/**
+ * 将 Markdown 拆成 Parent + Child。
+ *
+ * Parent：
+ *   一个完整 Markdown Section。
+ *
+ * Child：
+ *   Parent 内部经过 chunkSize / overlap
+ *   二次切分后的检索单元。
+ */
 export function splitText(
   text: string,
   source: string,
   chunkSize = 500,
   overlap = 100
-): Chunk[] {
-  const sections = parseMarkdownSections(text);
+): {
+  parents: ParentChunk[];
+  chunks: Chunk[];
+} {
+  const sections =
+    parseMarkdownSections(text);
 
+  const parents: ParentChunk[] = [];
   const chunks: Chunk[] = [];
 
   let chunkIndex = 0;
 
   for (const section of sections) {
-    const headingPath = section.headingPath;
+    const headingPath =
+      normalizeHeadingPath(
+        section.headingPath
+      );
 
-    const title = headingPath[0] ?? "";
+    const title =
+      headingPath[0] ?? "";
 
     const sectionName =
-      headingPath[headingPath.length - 1] ?? title;
+      headingPath[
+        headingPath.length - 1
+      ] ?? title;
 
-    const headingContext = headingPath
-      .map((heading, index) => {
-        return `${"#".repeat(index + 1)} ${heading}`;
-      })
-      .join("\n");
+    /**
+     * Parent 保留完整 Section 内容。
+     *
+     * 注意：
+     * Parent 不使用 chunkSize 限制。
+     */
+    const headingContext =
+      headingPath
+        .map(
+          (heading, index) =>
+            `${"#".repeat(index + 1)} ${heading}`
+        )
+        .join("\n");
 
-    const fullContent = headingContext
-      ? `${headingContext}\n\n${section.content}`
-      : section.content;
+    const parentContent =
+      headingContext
+        ? `${headingContext}\n\n${section.content}`
+        : section.content;
 
-    const sectionChunks = splitLongText(
-      fullContent,
-      chunkSize,
-      overlap
-    );
+    const normalizedParentContent =
+      parentContent.trim();
+
+    if (!normalizedParentContent) {
+      continue;
+    }
+
+    /**
+     * 一个 Markdown Section = 一个 Parent。
+     */
+    const parentId =
+      createParentId(
+        source,
+        headingPath,
+        normalizedParentContent
+      );
+
+    parents.push({
+      id: parentId,
+
+      content:
+        normalizedParentContent,
+
+      metadata: {
+        source,
+        title,
+        section: sectionName,
+        headingPath,
+        contentHash:
+          createContentHash(
+            normalizedParentContent
+          ),
+      },
+    });
+
+    /**
+     * Parent 内部继续按照原来的逻辑
+     * 生成 Child。
+     */
+    const sectionChunks =
+      splitLongText(
+        normalizedParentContent,
+        chunkSize,
+        overlap
+      );
+
+    let childIndex = 0;
 
     for (const content of sectionChunks) {
+      const normalizedContent =
+        content.trim();
+
+      if (!normalizedContent) {
+        continue;
+      }
+
+      const childId =
+        createChildId(
+          source,
+          parentId,
+          childIndex,
+          normalizedContent
+        );
+
       chunks.push({
-        content,
+        id: childId,
+
+        content:
+          normalizedContent,
 
         metadata: {
           source,
           title,
           section: sectionName,
+          headingPath,
+
           chunkIndex,
-          contentHash:createContentHash(content)
+
+          parentId,
+
+          parentContent:normalizedParentContent,
+          
+          contentHash:
+            createContentHash(
+              normalizedContent
+            ),
         },
       });
 
       chunkIndex++;
+      childIndex++;
     }
   }
 
-  return chunks;
+  return {
+    parents,
+    chunks,
+  };
 }
 
 /**
- * 将 Markdown 按 Heading 拆成 Section
+ * 将 Markdown 按 Heading 拆成 Section。
  */
-function parseMarkdownSections(text: string): Section[] {
-  const lines = text.split("\n");
+function parseMarkdownSections(
+  text: string
+): Section[] {
+  const lines =
+    text.split("\n");
 
   const sections: Section[] = [];
 
@@ -104,36 +309,50 @@ function parseMarkdownSections(text: string): Section[] {
   let currentContent = "";
 
   function flushSection() {
-    const content = currentContent.trim();
+    const content =
+      currentContent.trim();
 
     if (!content) {
       return;
     }
 
     sections.push({
-      headingPath: [...headingStack],
+      headingPath: [
+        ...headingStack,
+      ],
+
       content,
     });
 
     currentContent = "";
   }
-  console.log(lines,'lines');
+
   for (const line of lines) {
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-     console.log(headingMatch,'headingMatch');
+    const headingMatch =
+      line.match(
+        /^(#{1,6})\s+(.+)$/
+      );
+
     if (headingMatch) {
       flushSection();
 
-      const level = headingMatch[1].length;
-      const heading = headingMatch[2].trim();
+      const level =
+        headingMatch[1].length;
 
-      headingStack.length = level - 1;
-      headingStack[level - 1] = heading;
+      const heading =
+        headingMatch[2].trim();
+
+      headingStack.length =
+        level - 1;
+
+      headingStack[level - 1] =
+        heading;
 
       continue;
     }
 
-    currentContent += `${line}\n`;
+    currentContent +=
+      `${line}\n`;
   }
 
   flushSection();
@@ -142,7 +361,7 @@ function parseMarkdownSections(text: string): Section[] {
 }
 
 /**
- * 对超长 Section 进行二次切分
+ * 对超长 Section 进行二次切分。
  *
  * 优先按照段落切分，而不是直接 slice。
  */
@@ -155,10 +374,14 @@ function splitLongText(
     return [text.trim()];
   }
 
-  const paragraphs = text
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
+  const paragraphs =
+    text
+      .split(/\n\s*\n/)
+      .map(
+        (paragraph) =>
+          paragraph.trim()
+      )
+      .filter(Boolean);
 
   const chunks: string[] = [];
 
@@ -169,7 +392,10 @@ function splitLongText(
       ? `${current}\n\n${paragraph}`
       : paragraph;
 
-    if (candidate.length <= chunkSize) {
+    if (
+      candidate.length <=
+      chunkSize
+    ) {
       current = candidate;
       continue;
     }
@@ -178,15 +404,23 @@ function splitLongText(
       chunks.push(current);
     }
 
-    // 单个 paragraph 本身就超过 chunkSize
-    if (paragraph.length > chunkSize) {
-      const paragraphChunks = splitByCharacters(
-        paragraph,
-        chunkSize,
-        overlap
-      );
+    /**
+     * 单个 paragraph 本身就超过 chunkSize。
+     */
+    if (
+      paragraph.length >
+      chunkSize
+    ) {
+      const paragraphChunks =
+        splitByCharacters(
+          paragraph,
+          chunkSize,
+          overlap
+        );
 
-      chunks.push(...paragraphChunks);
+      chunks.push(
+        ...paragraphChunks
+      );
 
       current = "";
     } else {
@@ -198,11 +432,15 @@ function splitLongText(
     chunks.push(current);
   }
 
-  return addOverlap(chunks, overlap, chunkSize);
+  return addOverlap(
+    chunks,
+    overlap,
+    chunkSize
+  );
 }
 
 /**
- * 对特别长的单段文本进行字符级切分
+ * 对特别长的单段文本进行字符级切分。
  */
 function splitByCharacters(
   text: string,
@@ -219,17 +457,23 @@ function splitByCharacters(
       text.length
     );
 
-    const chunk = text.slice(start, end).trim();
+    const chunk =
+      text
+        .slice(start, end)
+        .trim();
 
     if (chunk) {
       chunks.push(chunk);
     }
 
-    if (end === text.length) {
+    if (
+      end === text.length
+    ) {
       break;
     }
 
-    start = end - overlap;
+    start =
+      end - overlap;
   }
 
   return chunks;
@@ -239,32 +483,57 @@ function splitByCharacters(
  * 给相邻 Chunk 添加 overlap。
  *
  * 注意：
- * 这里使用前一个 Chunk 的尾部作为下一个 Chunk 的上下文。
+ * overlap 只发生在同一个 Parent 内。
  */
 function addOverlap(
   chunks: string[],
   overlap: number,
   chunkSize: number
 ): string[] {
-  if (chunks.length <= 1 || overlap <= 0) {
+  if (
+    chunks.length <= 1 ||
+    overlap <= 0
+  ) {
     return chunks;
   }
 
-  const result: string[] = [chunks[0]];
+  const result: string[] = [
+    chunks[0],
+  ];
 
-  for (let i = 1; i < chunks.length; i++) {
-    const previous = result[result.length - 1];
+  for (
+    let i = 1;
+    i < chunks.length;
+    i++
+  ) {
+    const previous =
+      result[
+        result.length - 1
+      ];
 
-    const overlapText = previous.slice(
-      Math.max(0, previous.length - overlap)
-    );
+    const overlapText =
+      previous.slice(
+        Math.max(
+          0,
+          previous.length -
+            overlap
+        )
+      );
 
-    const current = `${overlapText}\n\n${chunks[i]}`;
+    const current =
+      `${overlapText}\n\n${chunks[i]}`;
 
-    if (current.length <= chunkSize + overlap) {
-      result.push(current.trim());
+    if (
+      current.length <=
+      chunkSize + overlap
+    ) {
+      result.push(
+        current.trim()
+      );
     } else {
-      result.push(chunks[i]);
+      result.push(
+        chunks[i]
+      );
     }
   }
 

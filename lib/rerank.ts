@@ -12,6 +12,8 @@ export interface RerankDocument {
 export interface RerankResult
   extends RerankDocument {
   rerankScore: number | null;
+  parentId: string;
+  parentContent: string;
 }
 
 export async function rerank(
@@ -27,21 +29,23 @@ export async function rerank(
     return documents.map((doc) => ({
       ...doc,
       rerankScore: null,
+      parentId: "",
+      parentContent: "",
     }));
   }
 
   const documentText = documents
     .map((doc, index) => {
-      return `
-[Document ${index}]
+          return `
+    [Document ${index}]
 
-Source: ${doc.source}
-Title: ${doc.title}
-Section: ${doc.section}
+    Source: ${doc.source}
+    Title: ${doc.title}
+    Section: ${doc.section}
 
-Content:
-${doc.content}
-`;
+    Content:
+    ${doc.content}
+    `;
     })
     .join("\n\n");
 
@@ -133,6 +137,8 @@ JSON 格式：
       .map((doc) => ({
         ...doc,
         rerankScore: null,
+        parentId: "",
+        parentContent: "",
       }));
   }
 }

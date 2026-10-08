@@ -34,15 +34,26 @@ export async function retrieve(
   query: string,
   limit = 10,
   scoreThreshold = 0.3,
-  filter?: RetrievalFilter
+  filter?: RetrievalFilter,
+  embeddingQuery?: string
 ) {
   console.log(
     filter,
     "retrieve-filter"
   );
 
+  console.log(
+    "Query:",
+    query
+  );
+  
+  console.log(
+    "Embedding Query:",
+    embeddingQuery 
+  );
+
   const vector =
-    await createEmbedding(query);
+    await createEmbedding(embeddingQuery ?? query);
 
   const result =
     await qdrant.search(
@@ -113,6 +124,14 @@ export async function retrieve(
 
       chunkIndex:
         item.payload?.chunkIndex as number,
+
+      parentId:
+        item.payload?.parentId as string | undefined,
+
+      parentContent:
+        item.payload?.parentContent as string | undefined,
+
+      rrfScore: item.score,
     }))
     .filter(
       (item) =>

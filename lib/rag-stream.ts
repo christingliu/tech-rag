@@ -119,84 +119,87 @@ export async function prepareRagContext(
     }
   }
 
-  // =================================================
-  // 2. Multi Query
-  // =================================================
+    //=================================================
+    // multi query generation
+    // =================================================
+    // 2. Multi Query
+    // =================================================
 
-  let multiQueries: string[] = [
-    rewrittenQuery,
-  ];
-
-  let multiQueryFallback = false;
-
-  const multiQueryTimer =
-    startStageTimer();
-
-  try {
-    const generatedQueries =
-      await generateMultiQueries(
-        rewrittenQuery,
-        3
-      );
-
-    if (
-      Array.isArray(generatedQueries) &&
-      generatedQueries.length > 0
-    ) {
-      multiQueries =
-        generatedQueries;
-    } else {
-      multiQueryFallback = true;
-    }
-
-    const latencyMs =
-      multiQueryTimer.end();
-
-    console.log(
-      "[RAG Stage] Multi Query:",
-      {
-        latencyMs,
-        queries: multiQueries,
-        fallback:
-          multiQueryFallback,
-      }
-    );
-
-    if (trace) {
-      trace.multiQuery = {
-        count:
-          multiQueries.length,
-        latencyMs,
-        fallback:
-          multiQueryFallback,
-      };
-    }
-  } catch (error) {
-    const latencyMs =
-      multiQueryTimer.end();
-
-    console.error(
-      "[RAG Stage] Multi Query failed:",
-      {
-        latencyMs,
-        error,
-      }
-    );
-
-    multiQueries = [
+    let multiQueries: string[] = [
       rewrittenQuery,
     ];
 
-    multiQueryFallback = true;
+    let multiQueryFallback = false;
 
-    if (trace) {
-      trace.multiQuery = {
-        count: 1,
-        latencyMs,
-        fallback: true,
-      };
+    const multiQueryTimer =
+      startStageTimer();
+
+    try {
+      const generatedQueries =
+        await generateMultiQueries(
+          rewrittenQuery,
+          3
+        );
+
+      if (
+        Array.isArray(generatedQueries) &&
+        generatedQueries.length > 0
+      ) {
+        multiQueries =
+          generatedQueries;
+      } else {
+        multiQueryFallback = true;
+      }
+
+      const latencyMs =
+        multiQueryTimer.end();
+
+      console.log(
+        "[RAG Stage] Multi Query:",
+        {
+          latencyMs,
+          queries: multiQueries,
+          fallback:
+            multiQueryFallback,
+        }
+      );
+
+      if (trace) {
+        trace.multiQuery = {
+          count:
+            multiQueries.length,
+          latencyMs,
+          fallback:
+            multiQueryFallback,
+        };
+      }
+    } catch (error) {
+      const latencyMs =
+        multiQueryTimer.end();
+
+      console.error(
+        "[RAG Stage] Multi Query failed:",
+        {
+          latencyMs,
+          error,
+        }
+      );
+
+      multiQueries = [
+        rewrittenQuery,
+      ];
+
+      multiQueryFallback = true;
+
+      if (trace) {
+        trace.multiQuery = {
+          count: 1,
+          latencyMs,
+          fallback: true,
+        };
+      }
     }
-  }
+
 
   // =================================================
   // 3. Multi Query Retrieval
@@ -389,6 +392,7 @@ export async function prepareRagContext(
       error
     );
   }
+
 
   // =================================================
   // 5. Retrieval Trace

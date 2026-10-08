@@ -1,6 +1,7 @@
 export async function withTimeout<T>(
   promise: Promise<T>,
-  timeoutMs: number
+  timeoutMs: number,
+  message?: string
 ): Promise<T> {
   let timer: NodeJS.Timeout;
 
@@ -10,7 +11,8 @@ export async function withTimeout<T>(
         timer = setTimeout(() => {
           reject(
             new Error(
-              `Operation timed out after ${timeoutMs}ms`
+              message ??
+                `Operation timed out after ${timeoutMs}ms`
             )
           );
         }, timeoutMs);

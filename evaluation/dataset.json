@@ -12,7 +12,7 @@
   {
     "id": "q003",
     "question": "useState 更新状态后会发生什么？",
-    "expectedSources": ["react/hooks.md", "reactstate.md"]
+    "expectedSources": ["react/hooks.md", "react/state.md"]
   },
   {
     "id": "q004",
@@ -57,7 +57,7 @@
   {
     "id": "q012",
     "question": "state 和 ref 都可以保存数据，它们最重要的区别是什么？",
-    "expectedSources": ["react/state.md", "rreact/refs.md"]
+    "expectedSources": ["react/state.md", "react/refs.md"]
   },
   {
     "id": "q013",

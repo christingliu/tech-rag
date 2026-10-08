@@ -89,8 +89,6 @@ export async function generateAnswerStream(
   question: string,
   context: string
 ) {
-  console.log(context,'context');
-  console.log(question,'question');
   const prompt = `
 你是一个个人技术知识库助手。
 
@@ -136,5 +134,51 @@ ${question}
   }catch(error){
     recordLlmFailure();
   throw error;
+  }
+}
+
+export async function generateDirectAnswerStream(
+  question: string
+) {
+  const prompt = `
+你是一个个人技术知识库助手。
+
+当前问题不需要查询知识库，请直接回答用户问题。
+
+规则：
+
+1. 正常回答用户的问题。
+2. 不需要引用任何 [Source N]。
+3. 不要编造不存在的信息。
+4. 如果你无法确定答案，请明确说明。
+5. 回答尽量简洁、准确。
+
+Question:
+
+${question}
+`;
+
+  try {
+    const stream =
+      await withTimeout(
+        openai.chat.completions.create({
+          model: "gpt-4o-mini",
+
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+
+          stream: true,
+        }),
+        30000
+      );
+
+    return stream;
+  } catch (error) {
+    recordLlmFailure();
+    throw error;
   }
 }

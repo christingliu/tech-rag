@@ -7,6 +7,7 @@ export type RagErrorStage =
   | "rerank"
   | "llm"
   | "hyde"
+  | "retrieval"
   | "multi-query";
 
 export class RagError extends Error {
