@@ -45,7 +45,7 @@ ${question}
         content: prompt,
       },
     ],
-  }),1000);
+  }),30000);
 
   const usage =
   response.usage;

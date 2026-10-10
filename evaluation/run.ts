@@ -3,19 +3,25 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { retrieve } from "../lib/rag";
+import { prepareRagContext } from "../lib/rag-hyde";
+import { generateAnswer } from "../lib/llm";
 import { keywordSearch } from "../lib/keyword";
 import { reciprocalRankFusion } from "../lib/hybrid";
 import { rewriteQuery } from "../lib/query";
-
+import { judgeAnswerCorrectness, judgeAnswerRelevance , judgeAnswerFaithfulness, judgeAnswerCitationSupport,type FaithfulnessClaim} from "./judge";
+import { validateCitations ,type ParsedCitation} from "./citations";
 interface EvaluationCase {
   id: string;
   question: string;
   expectedSources: string[];
+  referenceAnswer: string;
 }
 
 interface EvaluationResult {
   id: string;
   question: string;
+  generatedAnswer: string;
+  referenceAnswer: string;
   expectedSources: string[];
   retrievedSources: string[];
 
@@ -27,6 +33,24 @@ interface EvaluationResult {
     source: string;
     rank: number;
   }>;
+  correctness: number | null;
+  correctnessReason: string;
+  relevance: number | null;
+  relevanceReason: string;
+
+  faithfulness: number;
+  supportedClaims: number;
+  totalClaims: number;
+  faithfulnessClaims: FaithfulnessClaim[];
+
+  citations: ParsedCitation[];
+  validCitations: number;
+  invalidCitations: number;
+  contextSourceIds: number[];
+
+  citationCoverage: number | null;
+  citationSupportRate: number | null;
+  uncitedClaims: number;
 }
 
 const TOP_K = 5;
@@ -44,6 +68,24 @@ async function loadDataset(): Promise<EvaluationCase[]> {
 
   return JSON.parse(content);
 }
+
+async function generateEvaluationAnswer( question: string ): Promise<{ answer: string; context: string }> {
+   const ragResult = await prepareRagContext(question);
+   if ( ragResult.rerankedResults.length === 0 ) {
+     return {
+       answer: "知识库中没有找到相关信息。",
+       context: "",
+     };
+     }
+     const context = buildEvaluationContext( ragResult.rerankedResults );
+     const result = await generateAnswer( question, context );
+     return {
+       answer: result.answer,
+       context,
+     };
+    }
+
+   
 
 /**
  * Hit Rate@K
@@ -195,6 +237,15 @@ function findRelevantRanks(
     );
 }
 
+function buildEvaluationContext( rerankedResults: Awaited< ReturnType<typeof prepareRagContext> >["rerankedResults"] ): string { 
+  return rerankedResults .map( (item, index) => ` 
+  [Source ${index + 1}] 
+   Source: ${item.source} 
+   Title: ${item.title} 
+   Section: ${item.section} ${item.content} 
+   ` ) .join("\n\n");
+ }
+
 async function evaluateCase(
   item: EvaluationCase
 ): Promise<EvaluationResult> {
@@ -238,6 +289,38 @@ async function evaluateCase(
     )
   );
 
+  /** * ================================================= * V7.2 Generation Metrics * * 使用当前完整 RAG Pipeline。 * ================================================= */
+  const {
+    answer: generatedAnswer,
+    context,
+  } = await generateEvaluationAnswer( item.question );
+
+  const citationValidation = validateCitations(
+    generatedAnswer,
+    context
+  );
+
+  const correctnessJudge = await judgeAnswerCorrectness(
+    item.question,
+    item.referenceAnswer,
+    generatedAnswer
+  );
+
+  const relevanceResult = await judgeAnswerRelevance(
+    item.question,
+    generatedAnswer
+  );
+
+  const faithfulnessResult = await judgeAnswerFaithfulness(
+    context,
+    generatedAnswer
+  );
+
+  const citationSupportResult = await judgeAnswerCitationSupport(
+    context,
+    generatedAnswer
+  )
+
   return {
     id: item.id,
     question: item.question,
@@ -268,7 +351,43 @@ async function evaluateCase(
     relevantRanks:findRelevantRanks(
         item.expectedSources,
         retrievedSources
-      )
+      ),
+    generatedAnswer,
+     
+    referenceAnswer:item.referenceAnswer,
+
+    correctness:correctnessJudge.score,
+
+    correctnessReason:correctnessJudge.reason,
+
+    relevance: relevanceResult.score, 
+    
+    relevanceReason: relevanceResult.reason,
+
+    faithfulness: faithfulnessResult.score,
+    
+    supportedClaims:faithfulnessResult.supportedClaims,
+    
+    totalClaims:faithfulnessResult.totalClaims,
+    
+    faithfulnessClaims:faithfulnessResult.claims,
+
+    citations: citationValidation.citations,
+
+    validCitations:
+      citationValidation.validCitations,
+
+    invalidCitations:
+      citationValidation.invalidCitations,
+
+    contextSourceIds:
+      citationValidation.contextSourceIds,
+
+    citationCoverage: citationSupportResult.citationCoverage,
+
+    citationSupportRate: citationSupportResult.citationSupportRate,
+
+    uncitedClaims: citationSupportResult.uncitedClaims
   };
 }
 
@@ -292,6 +411,80 @@ function calculateAverage(
   );
 }
 
+function calculateAverageScore(
+  values: Array<number | null>
+): number {
+  const validValues =
+    values.filter(
+      (value): value is number =>
+        value !== null
+    );
+
+  if (validValues.length === 0) {
+    return 0;
+  }
+
+  return (
+    validValues.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    ) / validValues.length
+  );
+}
+
+function calculateAverageRelevance(
+  values: Array<number | null>
+): number {
+  const validValues =
+    values.filter(
+      (value): value is number =>
+        value !== null
+    );
+
+  if (validValues.length === 0) {
+    return 0;
+  }
+
+  return (
+    validValues.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    ) / validValues.length
+  );
+}
+
+/**
+ * Faithfulness
+ *
+ * 答案中的声明能被检索 Context 支持的比例。
+ *
+ * 只有 totalClaims > 0 的 Case 参与平均；
+ * 全部 Case 都没有可检验声明时视为 1
+ * （没有声明即不存在不忠实的内容）。
+ */
+function calculateAverageFaithfulness(
+  results: EvaluationResult[]
+): number {
+  const faithfulnessCases =
+    results.filter(
+      (result) => result.totalClaims > 0
+    );
+
+  if (faithfulnessCases.length === 0) {
+    return 1;
+  }
+
+  return (
+    faithfulnessCases.reduce(
+      (sum, result) =>
+        sum + result.faithfulness,
+      0
+    ) / faithfulnessCases.length
+  );
+}
+
 async function main() {
   const dataset = await loadDataset();
 
@@ -307,22 +500,6 @@ async function main() {
 
     results.push(result);
 
-    console.log({
-      expectedSources:
-        result.expectedSources,
-
-      retrievedSources:
-        result.retrievedSources.slice(
-          0,
-          TOP_K
-        ),
-
-      hitRate: result.hitRate,
-      recall: result.recall,
-      precision: result.precision,
-      reciprocalRank:
-        result.reciprocalRank,
-    });
   }
 
   /**
@@ -364,6 +541,49 @@ async function main() {
       )
     );
 
+
+    const averageCorrectness =
+    calculateAverageScore(
+      results.map(
+        (item) => item.correctness
+      )
+    ) / 5;
+
+    const averageRelevance =
+    calculateAverageRelevance(
+      results.map(
+        (item) => item.relevance
+      )
+    );
+
+    const averageFaithfulness =
+    calculateAverageFaithfulness(
+      results
+    );
+
+    const totalCitations = results.reduce(
+      (sum, result) =>
+        sum + result.validCitations + result.invalidCitations,
+      0
+    );
+    
+    const totalValidCitations = results.reduce(
+      (sum, result) => sum + result.validCitations,
+      0
+    );
+    
+    const totalInvalidCitations = results.reduce(
+      (sum, result) => sum + result.invalidCitations,
+      0
+    );
+    
+    const citationValidity =
+      totalCitations === 0
+        ? null
+        : totalValidCitations / totalCitations;
+    
+
+
   console.log("\n====================");
   console.log("Evaluation Summary");
   console.log("====================");
@@ -396,7 +616,43 @@ async function main() {
     `MRR: ${averageMRR.toFixed(3)}`
   );
 
+  console.log(
+    `Answer correctness: ${averageCorrectness.toFixed(3)}`
+  );
+
+  console.log(
+    `Answer relevance: ${averageRelevance.toFixed(3)}/5`
+  );
+
+  console.log(
+    `Answer faithfulness:${averageFaithfulness.toFixed(3)}`
+  )
+
+  console.log(
+    `Total citations: ${totalCitations}`
+  );
+  
+  console.log(
+    `Valid citations: ${totalValidCitations}`
+  );
+  
+  console.log(
+    `Invalid citations: ${totalInvalidCitations}`
+  );
+
+  console.log()
+  
+  console.log(
+    `Citation validity: ${
+      citationValidity === null
+        ? "N/A"
+        : citationValidity.toFixed(3)
+    }`
+  );
+
   console.log("\nDetails:");
+
+  
 
   for (const result of results) {
     console.log({
@@ -413,13 +669,42 @@ async function main() {
 
       expectedSources:result.expectedSources,
 
-      retrievedSources:result.retrievedSources
+      retrievedSources:result.retrievedSources,
 
+      generateAnswer:result.generatedAnswer,
+
+      referenceAnswer:result.referenceAnswer,
+
+      correctness:result.correctness,
+
+      correctnessReason:result.correctnessReason,
+
+      relevance: result.relevance, 
+    
+      relevanceReason: result.relevanceReason,
+
+      faithfulness: result.faithfulness,
+    
+      supportedClaims:result.supportedClaims,
+      
+      totalClaims:result.totalClaims,
+      
+      faithfulnessClaims:result.faithfulnessClaims,
+
+      citations: result.citations,
+
+      validCitations: result.validCitations,
+
+      invalidCitations: result.invalidCitations,
+
+      contextSourceIds: result.contextSourceIds,
+
+      citationCoverage: result.citationCoverage,
+
+      citationSupportRate: result.citationSupportRate,
+
+      uncitedClaims: result.uncitedClaims
     });
-
-    console.log(
-     
-    );
   
     if (
       result.relevantRanks.length === 0
