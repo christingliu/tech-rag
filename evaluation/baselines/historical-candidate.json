@@ -1,0 +1,1333 @@
+{
+    "schemaVersion": 1,
+    "runId": "run-2026-10-10T04-44-45-634Z",
+    "createdAt": "2026-10-10T04:53:35.078Z",
+    "datasetVersion": "regression-v1",
+    "metrics": {
+      "retrievalHitRateAt5": 0.9411764705882353,
+      "retrievalRecallAt5": 0.9117647058823529,
+      "retrievalPrecisionAt5": 0.2549019607843137,
+      "mrr": 0.7990196078431373,
+      "answerCorrectness": 0.5599999999999999,
+      "answerRelevance": 0.95,
+      "answerFaithfulness": 0.965686274509804,
+      "citationValidity": 1
+    },
+    "cases": [
+      {
+        "id": "q001",
+        "question": "React 函数组件有什么基本要求？",
+        "expectedSources": [
+          "react/components.md"
+        ],
+        "retrievedSources": [
+          "react/components.md",
+          "react/performance.md",
+          "react/memo.md",
+          "react/server-components.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.25,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/components.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "React 函数组件的基本要求包括：\n\n1. 函数名必须以大写字母开头。\n2. 接收 props 作为参数。\n3. 返回 JSX [Source 1]。",
+        "referenceAnswer": "函数组件是以 JavaScript 函数形式定义的组件，基本要求：1) 函数名必须以大写字母开头（否则 React 会将其视为普通 HTML 标签）；2) 必须返回 JSX 或 null；3) 接收 props 对象作为第一个参数，且 props 应被视为只读；4) 函数应当是纯函数——相同输入返回相同输出，不直接修改外部状态。满足这些要求后即可像普通组件一样使用。",
+        "correctness": 2,
+        "correctnessReason": "Generated Answer 提到了函数名必须以大写字母开头、接收 props 作为参数和返回 JSX，但遗漏了函数应返回 null 的情况以及 props 应被视为只读的要求。此外，未提及函数应当是纯函数的要求，导致重要信息缺失。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，列出了 React 函数组件的基本要求，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 3,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "函数名必须以大写字母开头。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确指出函数组件的函数名必须以大写字母开头。"
+          },
+          {
+            "claim": "接收 props 作为参数。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确说明函数组件接收 props 作为参数。"
+          },
+          {
+            "claim": "返回 JSX。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确指出函数组件返回 JSX。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 65,
+            "end": 75
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q002",
+        "question": "Props 是什么？它在父组件和子组件之间起什么作用？",
+        "expectedSources": [
+          "react/props.md"
+        ],
+        "retrievedSources": [
+          "react/props.md",
+          "react/components.md",
+          "react/state.md",
+          "react/context.md",
+          "react/performance.md",
+          "react/refs.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/props.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "Props 是父组件传给子组件的数据，类似于函数的参数，允许同一个组件展示不同的内容 [Source 1]。在父组件和子组件之间，props 起到传递数据的作用，父组件在 JSX 上写属性，子组件则通过 props 对象读取这些属性 [Source 3]。",
+        "referenceAnswer": "Props（properties）是父组件传递给子组件的只读数据，是 React 中父组件向子组件单向通信的主要机制。特点：1) 单向数据流——数据只能从父流向子；2) 只读——子组件不能修改 props，只能读取；3) 子组件可以通过调用 props 中传入的回调函数间接把信息传回父组件；4) props 变化会触发子组件重新渲染。",
+        "correctness": 4,
+        "correctnessReason": "Generated Answer 基本回答了问题，说明了 props 是父组件传给子组件的数据，并提到它在父子组件之间的作用。但遗漏了 props 的只读特性、单向数据流的特点以及 props 变化会触发子组件重新渲染等重要信息。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 清晰地定义了 Props，并准确描述了它在父组件和子组件之间的作用，没有包含无关内容，直接回答了问题。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "Props 是父组件传给子组件的数据，类似于函数的参数。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确指出 Props 是父组件传给子组件的数据，类似函数的参数，让同一个组件展示不同内容 [Source 1]。"
+          },
+          {
+            "claim": "父组件在 JSX 上写属性，子组件通过 props 对象读取这些属性。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中说明父组件在 JSX 上写属性，子组件通过 props 对象读取这些属性 [Source 3]。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 43,
+            "end": 53
+          },
+          {
+            "sourceId": 3,
+            "start": 117,
+            "end": 127
+          }
+        ],
+        "validCitations": 2,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q003",
+        "question": "useState 更新状态后会发生什么？",
+        "expectedSources": [
+          "react/hooks.md",
+          "react/state.md"
+        ],
+        "retrievedSources": [
+          "react/state.md",
+          "react/performance.md",
+          "react/rendering.md",
+          "react/server-components.md",
+          "react/hooks.md",
+          "react/refs.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.4,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/hooks.md",
+            "rank": 5
+          },
+          {
+            "source": "react/state.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "useState 更新状态后，会触发组件重新渲染。调用更新函数，比如 `setCount`，可以更新状态，并且 React 会根据新的状态进行重新渲染，以便更新 UI [Source 1][Source 2][Source 3].",
+        "referenceAnswer": "调用 useState 返回的更新函数（如 setCount）后：1) React 会将新的状态值入队；2) 标记该组件为需要重新渲染；3) React 重新执行组件函数，useState 返回更新后的状态值；4) React 对比前后虚拟 DOM，只更新实际变化的部分。注意：状态更新是异步批量处理的，连续多次 setState 不会立即触发多次渲染；如果新值与旧值相同（Object.is 相等），React 会跳过重渲染。",
+        "correctness": 3,
+        "correctnessReason": "Generated Answer 提到会触发组件重新渲染和更新 UI，但遗漏了关于状态入队、标记组件、虚拟 DOM 对比等重要信息。此外，未提及状态更新是异步批量处理的特性，也没有说明相同值的情况。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了问题，清晰地说明了 useState 更新状态后会触发组件重新渲染，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 3,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "useState 更新状态后，会触发组件重新渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到状态更新通常会触发组件重新渲染。"
+          },
+          {
+            "claim": "调用更新函数，比如 setCount，可以更新状态。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中说明调用 setCount 可以更新状态。"
+          },
+          {
+            "claim": "React 会根据新的状态进行重新渲染，以便更新 UI。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到 React 会根据组件状态的变化计算需要更新的 UI。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 84,
+            "end": 94
+          },
+          {
+            "sourceId": 2,
+            "start": 94,
+            "end": 104
+          },
+          {
+            "sourceId": 3,
+            "start": 104,
+            "end": 114
+          }
+        ],
+        "validCitations": 3,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q004",
+        "question": "useEffect 返回的函数什么时候执行？",
+        "expectedSources": [
+          "react/hooks.md"
+        ],
+        "retrievedSources": [
+          "react/hooks.md",
+          "react/performance.md",
+          "react/refs.md",
+          "react/memo.md",
+          "react/server-components.md",
+          "react/state.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/hooks.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "useEffect 返回的函数会在以下时机执行：\n\n1. 在 effect 重新执行之前执行上一次 effect 的 cleanup。\n2. 在组件卸载时执行 cleanup [Source 1]。",
+        "referenceAnswer": "useEffect 返回的函数是清理函数（cleanup function），在以下时机执行：1) 组件卸载之前；2) 每次依赖数组变化导致 effect 重新执行之前（先执行上一次的清理函数，再运行新的 effect）。如果依赖数组为空，清理函数只在组件卸载时执行。它常用于清除定时器、取消订阅、中止网络请求等，防止内存泄漏。",
+        "correctness": 2,
+        "correctnessReason": "Generated Answer 提到了清理函数的执行时机，但遗漏了依赖数组变化的情况和清理函数的具体用途，导致信息不完整。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，清晰地说明了 useEffect 返回的函数执行的时机，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "useEffect 返回的函数会在 effect 重新执行之前执行上一次 effect 的 cleanup。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到 'React 会在 effect 重新执行之前执行上一次 effect 的 cleanup'，支持该陈述。"
+          },
+          {
+            "claim": "useEffect 返回的函数会在组件卸载时执行 cleanup。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到 '并且在组件卸载时执行 cleanup'，支持该陈述。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 88,
+            "end": 98
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q005",
+        "question": "useRef 返回的对象有什么特点？",
+        "expectedSources": [
+          "react/refs.md"
+        ],
+        "retrievedSources": [
+          "react/refs.md",
+          "react/performance.md",
+          "react/props.md",
+          "react/hooks.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.25,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/refs.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "useRef 返回的对象包含一个 current 属性。这个属性可以用来保存对 DOM 元素的引用，例如通过把 ref 挂到 JSX 元素上，current 就会指向对应的 DOM 节点 [Source 1]。",
+        "referenceAnswer": "useRef 返回一个固定的可变对象 { current: value }，特点：1) 引用稳定——组件多次渲染之间返回的是同一个对象，修改 current 不会触发重新渲染；2) current 可变——可以在任意时刻读写 current 属性；3) 初始值只在首次渲染时生效。常用于访问 DOM 元素和保存不需要触发渲染的可变数据（如定时器 ID、上一次的值）。",
+        "correctness": 2,
+        "correctnessReason": "Generated Answer 提到 useRef 返回的对象包含 current 属性，并且可以用来保存对 DOM 元素的引用，但没有提到引用稳定性、current 可变性和初始值只在首次渲染时生效等重要特点，且未提及 useRef 的其他常见用途，导致重要信息遗漏。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，清晰地说明了 useRef 返回的对象的特点，且没有包含无关内容。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "useRef 返回的对象包含一个 current 属性。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确说明了 useRef 返回一个对象，包含 current 属性。"
+          },
+          {
+            "claim": "current 可以用来保存对 DOM 元素的引用。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到把 ref 挂到 JSX 元素上，current 就会指向对应的 DOM 节点，支持该陈述。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 94,
+            "end": 104
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q006",
+        "question": "React 中如何让组件接收标签内部传入的内容？",
+        "expectedSources": [
+          "react/props.md"
+        ],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/context.md",
+          "react/components.md",
+          "react/props.md",
+          "react/memo.md",
+          "react/rendering.md",
+          "react/server-components.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 0.25,
+        "relevantRanks": [
+          {
+            "source": "react/props.md",
+            "rank": 4
+          }
+        ],
+        "generatedAnswer": "在 React 中，组件可以通过 props.children 来接收标签内部传入的内容。具体地说，在组件标签中间写的内容会作为 props.children 传给子组件。例如：\n\n```jsx\nfunction Card(props) {\n  return <div>{props.children}</div>;\n}\n\n<Card>\n  <p>这里是内容</p>\n</Card>\n```\n\n这样，Card 组件就能包裹任意内容，常用于布局类组件 [Source 1]。",
+        "referenceAnswer": "通过 children prop。组件标签内部包裹的内容会作为 props.children 传入子组件，子组件在 JSX 中渲染 {props.children} 即可显示这些内容。children 可以是文本、JSX 元素、其他组件，甚至是函数（render props 模式）。这是 React 实现内容分发/插槽类似功能的标准方式。",
+        "correctness": 5,
+        "correctnessReason": "Generated Answer 完全正确地回答了问题，核心信息完整，详细解释了如何使用 props.children 接收标签内部传入的内容，并提供了示例代码，且没有遗漏重要信息或引入错误信息。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了如何让 React 组件接收标签内部传入的内容，清晰地解释了使用 props.children 的方法，并提供了示例代码，没有包含无关内容。",
+        "faithfulness": 1,
+        "supportedClaims": 3,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "组件可以通过 props.children 来接收标签内部传入的内容。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确说明了 props.children 是用于接收写在组件标签中间的内容。"
+          },
+          {
+            "claim": "在组件标签中间写的内容会作为 props.children 传给子组件。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中清楚地描述了写在组件标签中间的内容会被传递给子组件作为 props.children。"
+          },
+          {
+            "claim": "Card 组件就能包裹任意内容，常用于布局类组件。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到 children 让组件可以包裹任意内容，常用于布局类组件。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 225,
+            "end": 235
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q007",
+        "question": "如果一个值变化后不希望导致组件重新渲染，应该考虑使用什么？",
+        "expectedSources": [
+          "react/refs.md"
+        ],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/state.md",
+          "react/memo.md",
+          "react/components.md",
+          "react/rendering.md",
+          "react/server-components.md",
+          "react/refs.md"
+        ],
+        "hitRate": 0,
+        "recall": 0,
+        "precision": 0,
+        "reciprocalRank": 0,
+        "relevantRanks": [
+          {
+            "source": "react/refs.md",
+            "rank": 7
+          }
+        ],
+        "generatedAnswer": "如果一个值变化后不希望导致组件重新渲染，应该考虑使用 `React.memo` 跳过 props 没变的组件渲染。此外，还可以使用 `useMemo` 和 `useCallback` 来保持 props 引用稳定，从而让 memo 的子组件能真正跳过渲染 [Source 1][Source 2].",
+        "referenceAnswer": "应该考虑使用 useRef。useRef 返回的 { current } 对象在整个组件生命周期内引用稳定，修改其 current 属性不会触发组件重新渲染，适合保存定时器 ID、DOM 引用、跨渲染需要保留但不用于 UI 显示的可变值。注意：如果这个值需要在 UI 中显示，就应该用 useState 而不是 useRef。",
+        "correctness": 2,
+        "correctnessReason": "Generated Answer 提到了 `React.memo`、`useMemo` 和 `useCallback`，这些都是优化渲染的手段，但没有提到 `useRef`，这是 Reference Answer 中的核心内容。此外，Generated Answer 的信息与 Reference Answer 的重点不一致，导致遗漏了重要信息。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了问题，提供了使用 `React.memo`、`useMemo` 和 `useCallback` 的建议，完全围绕问题的核心意图展开，没有包含无关内容。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "如果一个值变化后不希望导致组件重新渲染，应该考虑使用 React.memo 跳过 props 没变的组件渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到使用 React.memo 跳过 props 没变的组件渲染是减少不必要渲染的常见手段。"
+          },
+          {
+            "claim": "可以使用 useMemo 和 useCallback 来保持 props 引用稳定，从而让 memo 的子组件能真正跳过渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到用 useMemo 和 useCallback 来保持 props 引用稳定，以便让 memo 的子组件能真正跳过渲染。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 128,
+            "end": 138
+          },
+          {
+            "sourceId": 2,
+            "start": 138,
+            "end": 148
+          }
+        ],
+        "validCitations": 2,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q008",
+        "question": "一个组件需要跨很多层级共享主题或当前用户信息，应该使用什么机制？",
+        "expectedSources": [
+          "react/context.md"
+        ],
+        "retrievedSources": [
+          "react/state.md",
+          "react/context.md",
+          "react/components.md",
+          "react/performance.md",
+          "react/server-components.md",
+          "react/memo.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 0.5,
+        "relevantRanks": [
+          {
+            "source": "react/context.md",
+            "rank": 2
+          }
+        ],
+        "generatedAnswer": "一个组件需要跨很多层级共享主题或当前用户信息时，应该使用 React Context 机制。Context 适合存放全局性质的数据，以便许多组件可以读取这些数据 [Source 2]。",
+        "referenceAnswer": "应该使用 Context（React.createContext）。Context 允许顶层 Provider 提供数据，树中任意深度的组件通过 useContext 读取，而不必在每一层手动传递 props（避免 prop drilling 逐层透传问题）。典型用法：createContext 创建 → Provider 包裹组件树并提供 value → 深层组件 useContext 消费。适合全局性、低频变化的数据如主题、当前登录用户、语言偏好。",
+        "correctness": 3,
+        "correctnessReason": "Generated Answer 提到了使用 React Context 机制来共享主题或当前用户信息，但没有详细说明如何使用 Context（如 Provider 和 useContext 的具体用法），遗漏了 Reference Answer 中的重要信息。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，明确指出使用 React Context 机制来共享主题或用户信息，且没有包含无关内容。",
+        "faithfulness": 1,
+        "supportedClaims": 1,
+        "totalClaims": 1,
+        "faithfulnessClaims": [
+          {
+            "claim": "一个组件需要跨很多层级共享主题或当前用户信息时，应该使用 React Context 机制。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 适合存放全局性质的数据，许多组件都需要读，但很少变化，这支持了使用 React Context 机制的适用性。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 2,
+            "start": 81,
+            "end": 91
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q009",
+        "question": "React 中如何避免一个组件树因为局部状态频繁变化而全部重新渲染？",
+        "expectedSources": [
+          "react/performance.md"
+        ],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/state.md",
+          "react/memo.md",
+          "react/components.md",
+          "react/rendering.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/performance.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "可以通过以下三种方式避免一个组件树因为局部状态频繁变化而全部重新渲染：\n\n1. **使用 React.memo**：通过跳过 props 没变的组件渲染来减少不必要的渲染。\n2. **状态拆小**：将频繁变化的状态放在小组件内，而不是放在页面顶层，这样可以避免整棵树跟着重渲染。\n3. **使用 useMemo 和 useCallback**：保持 props 引用稳定，让 memo 的子组件能真正跳过渲染。[Source 1][Source 3]",
+        "referenceAnswer": "主要手段：1) 状态下放（lift state down）——把频繁变化的状态放到尽可能小的子组件中，缩小重渲染范围；2) 组件提升与 children 复用——用 children prop 传入的元素引用不变时，状态所在的父组件重渲染不会让 children 重新渲染；3) React.memo 包裹子组件，配合 useMemo/useCallback 稳定 props 引用，跳过不必要的重渲染；4) 拆分组件，让状态隔离在独立的叶子组件里。",
+        "correctness": 3,
+        "correctnessReason": "Generated Answer 提供了部分正确的内容，但遗漏了 Reference Answer 中的重要信息，如组件提升与 children 复用的策略，以及拆分组件的具体提法。此外，虽然提到了使用 React.memo 和 useMemo/useCallback，但没有明确提到它们的结合使用和目的，导致信息不够完整。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了如何避免组件树因局部状态频繁变化而重新渲染，提供了具体的解决方案，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 3,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "使用 React.memo 可以通过跳过 props 没变的组件渲染来减少不必要的渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到使用 React.memo 跳过 props 没变的组件渲染是减少不必要渲染的常见手段。"
+          },
+          {
+            "claim": "将频繁变化的状态放在小组件内，而不是放在页面顶层，可以避免整棵树跟着重渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到把频繁变化的状态放在小组件里，避免放在页面顶层，以减少整棵树的重渲染。"
+          },
+          {
+            "claim": "使用 useMemo 和 useCallback 可以保持 props 引用稳定，让 memo 的子组件能真正跳过渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中说明用 useMemo 和 useCallback 可以保持 props 引用稳定，从而让 memo 的子组件能跳过渲染。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 205,
+            "end": 215
+          },
+          {
+            "sourceId": 3,
+            "start": 215,
+            "end": 225
+          }
+        ],
+        "validCitations": 2,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q010",
+        "question": "什么时候应该使用 React.memo、useMemo 和 useCallback？",
+        "expectedSources": [
+          "react/memo.md",
+          "react/performance.md"
+        ],
+        "retrievedSources": [
+          "react/memo.md",
+          "react/performance.md",
+          "react/components.md",
+          "react/server-components.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.5,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/memo.md",
+            "rank": 1
+          },
+          {
+            "source": "react/performance.md",
+            "rank": 2
+          }
+        ],
+        "generatedAnswer": "应该使用 React.memo、useMemo 和 useCallback 的时机如下：\n\n1. **React.memo**：适合渲染开销大且 props 相对稳定的组件，只有在 props 变化时组件才会重新渲染，从而跳过不必要的渲染 [Source 2]。\n\n2. **useMemo**：用于缓存计算结果，防止不必要的重新计算，主要是当计算开销较大且依赖的数据不变时使用。\n\n3. **useCallback**：用于缓存函数引用，依赖不变时返回同一个函数引用，主要在将回调传给被 memo 的子组件时，避免每次渲染都生成新函数导致 memo 失效 [Source 4]。\n\n使用这些工具的正确顺序是：先优化数据结构和状态组织，然后用 Profiler 定位真正慢的组件，最后针对性地应用缓存机制 [Source 3]。",
+        "referenceAnswer": "React.memo：当组件渲染成本高、且相同 props 会频繁重复渲染时，用它在 props 浅比较相同的情况下跳过重渲染。useMemo：当有计算开销大的值、或需要保持对象/数组引用稳定（作为依赖传给 memo 组件或其他 hook）时使用。useCallback：当需要保持回调函数引用稳定时使用——最典型是把回调传给被 React.memo 包裹的子组件，或回调本身是其他 hook 的依赖。三者都是优化手段，不是默认选项：只有存在可测量的性能问题或引用稳定性需求时才使用，滥用反而增加复杂度和内存开销。",
+        "correctness": 4,
+        "correctnessReason": "Generated Answer 基本正确，涵盖了 React.memo、useMemo 和 useCallback 的使用时机，但在对 React.memo 的描述中没有提到 '浅比较' 的概念，且没有强调三者是优化手段而非默认选项，略有遗漏。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了问题，清晰地解释了何时使用 React.memo、useMemo 和 useCallback，且没有包含无关内容。",
+        "faithfulness": 0.75,
+        "supportedClaims": 3,
+        "totalClaims": 4,
+        "faithfulnessClaims": [
+          {
+            "claim": "React.memo 适合渲染开销大且 props 相对稳定的组件，只有在 props 变化时组件才会重新渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确指出 React.memo 只有在 props 变化时组件才重新渲染，适合渲染开销大、props 稳定的组件 [Source 2]。"
+          },
+          {
+            "claim": "useMemo 用于缓存计算结果，防止不必要的重新计算，主要是当计算开销较大且依赖的数据不变时使用。",
+            "verdict": "NOT_SUPPORTED",
+            "reason": "Context 中没有明确说明 useMemo 的具体使用场景和条件，缺乏对 claim 中“主要是当计算开销较大且依赖的数据不变时使用”的支持。"
+          },
+          {
+            "claim": "useCallback 用于缓存函数引用，依赖不变时返回同一个函数引用，主要在将回调传给被 memo 的子组件时，避免每次渲染都生成新函数导致 memo 失效。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确说明 useCallback 的主要用途是避免每次渲染都生成新函数导致 memo 失效 [Source 4]。"
+          },
+          {
+            "claim": "使用这些工具的正确顺序是：先优化数据结构和状态组织，然后用 Profiler 定位真正慢的组件，最后针对性地应用缓存机制。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确列出了使用这些工具的正确顺序 [Source 3]。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 2,
+            "start": 120,
+            "end": 130
+          },
+          {
+            "sourceId": 4,
+            "start": 279,
+            "end": 289
+          },
+          {
+            "sourceId": 3,
+            "start": 353,
+            "end": 363
+          }
+        ],
+        "validCitations": 3,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 0.75,
+        "citationSupportRate": 1,
+        "uncitedClaims": 1
+      },
+      {
+        "id": "q011",
+        "question": "Context 和 Props 都可以传递数据，它们分别适合什么场景？",
+        "expectedSources": [
+          "react/context.md",
+          "react/props.md"
+        ],
+        "retrievedSources": [
+          "react/context.md",
+          "react/props.md",
+          "react/performance.md",
+          "react/components.md",
+          "react/refs.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.4,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/context.md",
+            "rank": 1
+          },
+          {
+            "source": "react/props.md",
+            "rank": 2
+          }
+        ],
+        "generatedAnswer": "Context 适合存放全局性质的数据，例如主题、当前登录用户和语言配置，这类数据的特点是许多组件都需要读取，但很少变化【Source 1】。而 Props 则是父组件传给子组件的数据，适用于让同一个组件展示不同内容【Source 4】。\n\n当传递路径上只有一两层时，优先使用 Props，Context 是备选方案【Source 2】。",
+        "referenceAnswer": "Props 适合显式的、局部的、层级较浅的数据传递：组件之间有明确的父子关系、数据流向清晰可追踪，是 React 的默认数据传递方式。Context 适合全局性或跨多层级共享的数据：如主题、当前用户、语言等被很多不同层级的组件需要的值，用 props 会造成 prop drilling（中间层组件被迫透传不属于自己的数据）。Context 会降低组件复用性且值变化会使所有消费者重渲染，所以 props 能解决的场景优先用 props，跨层级公共数据才用 Context。",
+        "correctness": 3,
+        "correctnessReason": "Generated Answer 部分正确地描述了 Context 和 Props 的适用场景，但遗漏了关于 Props 的层级关系和数据流向的清晰性，以及 Context 可能导致的组件复用性降低和重渲染的问题。这些是 Reference Answer 中的重要信息。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，清晰地解释了 Context 和 Props 各自适合的场景，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 3,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "Context 适合存放全局性质的数据，例如主题、当前登录用户和语言配置，这类数据的特点是许多组件都需要读取，但很少变化。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 明确陈述了适合存放全局性质的数据的例子，并说明了这些数据的特点。"
+          },
+          {
+            "claim": "Props 是父组件传给子组件的数据，适用于让同一个组件展示不同内容。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 明确说明了 Props 的定义和用途。"
+          },
+          {
+            "claim": "当传递路径上只有一两层时，优先使用 Props，Context 是备选方案。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到在传递路径上只有一两层时，优先使用 Props 的建议。"
+          }
+        ],
+        "citations": [],
+        "validCitations": 0,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q012",
+        "question": "state 和 ref 都可以保存数据，它们最重要的区别是什么？",
+        "expectedSources": [
+          "react/state.md",
+          "react/refs.md"
+        ],
+        "retrievedSources": [
+          "react/refs.md",
+          "react/state.md",
+          "react/server-components.md",
+          "react/context.md",
+          "react/memo.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.4,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/state.md",
+            "rank": 2
+          },
+          {
+            "source": "react/refs.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "state 和 ref 的最重要区别在于，修改 ref.current 不会触发组件重新渲染，而修改 state 会触发组件重新渲染。[Source 1][Source 2]",
+        "referenceAnswer": "最重要的区别是：修改 state 会触发组件重新渲染（state 是用于 UI 渲染的数据），而修改 ref.current 不会触发重新渲染（ref 是不参与渲染的可变数据）。因此：数据需要展示在 UI 上、且变化要反映到界面时用 state；数据只是内部记录（定时器、DOM 节点、上次值缓存）不需要触发渲染时用 ref。另外 state 的更新是异步批量的、应通过 setter 并视为不可变数据，ref.current 可以随时同步读写。",
+        "correctness": 3,
+        "correctnessReason": "Generated Answer 提到了 state 和 ref 的主要区别，即修改 state 会触发重新渲染，而修改 ref.current 不会触发重新渲染，这是核心事实。但它遗漏了 Reference Answer 中关于 state 和 ref 的具体用途（如 UI 渲染和内部记录）以及 state 更新的异步批量特性等重要信息，因此评分为部分正确。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，清晰地阐明了 state 和 ref 的最重要区别，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "修改 ref.current 不会触发组件重新渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确指出 '修改 ref.current 不会触发组件重新渲染'。"
+          },
+          {
+            "claim": "修改 state 会触发组件重新渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确指出 'State 变化会触发组件重新渲染'。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 67,
+            "end": 77
+          },
+          {
+            "sourceId": 2,
+            "start": 77,
+            "end": 87
+          }
+        ],
+        "validCitations": 2,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q013",
+        "question": "React.memo、useMemo 和 useCallback 分别缓存什么？",
+        "expectedSources": [
+          "react/memo.md"
+        ],
+        "retrievedSources": [
+          "react/memo.md",
+          "react/performance.md",
+          "react/components.md",
+          "react/server-components.md",
+          "react/refs.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/memo.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "React.memo 缓存组件，只有在 props 变化时组件才重新渲染 [Source 2]。\n\nuseMemo 缓存计算结果，依赖不变时直接返回上次的值 [Source 3]。\n\nuseCallback 缓存函数本身，依赖不变时返回同一个函数引用 [Source 4]。",
+        "referenceAnswer": "React.memo 缓存的是组件的渲染结果（对 props 做浅比较，相同则跳过整个组件的重新渲染）；useMemo 缓存的是值的计算结果（依赖不变时直接返回上次计算值，避免重复昂贵计算或保持引用稳定）；useCallback 缓存的是函数引用本身（依赖不变时返回同一个函数实例，等价于 useMemo(() => fn, deps)）。三者分别对应：组件输出、值、函数三类缓存对象。",
+        "correctness": 4,
+        "correctnessReason": "Generated Answer 基本正确，涵盖了 React.memo、useMemo 和 useCallback 的核心功能，但在 React.memo 的描述中遗漏了对 props 做浅比较的细节，导致轻微的信息缺失。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，清晰地解释了 React.memo、useMemo 和 useCallback 各自缓存的内容，没有包含无关信息，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 3,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "React.memo 缓存组件，只有在 props 变化时组件才重新渲染。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到 React.memo 包裹组件后，只有 props 变化时组件才重新渲染。"
+          },
+          {
+            "claim": "useMemo 缓存计算结果，依赖不变时直接返回上次的值。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中说明 useMemo 缓存计算结果，依赖不变时直接返回上次的值。"
+          },
+          {
+            "claim": "useCallback 缓存函数本身，依赖不变时返回同一个函数引用。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中指出 useCallback 缓存函数本身，依赖不变时返回同一个函数引用。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 2,
+            "start": 37,
+            "end": 47
+          },
+          {
+            "sourceId": 3,
+            "start": 79,
+            "end": 89
+          },
+          {
+            "sourceId": 4,
+            "start": 126,
+            "end": 136
+          }
+        ],
+        "validCitations": 3,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q014",
+        "question": "React 重新渲染是不是意味着整个页面都会重新创建？",
+        "expectedSources": [
+          "react/rendering.md"
+        ],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/state.md",
+          "react/rendering.md",
+          "react/memo.md",
+          "react/components.md",
+          "react/refs.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 0.3333333333333333,
+        "relevantRanks": [
+          {
+            "source": "react/rendering.md",
+            "rank": 3
+          }
+        ],
+        "generatedAnswer": "重新渲染并不意味着整个页面都会被重新创建。React 会通过协调过程确定需要更新的部分，从而只更新必要的 UI。[Source 1]",
+        "referenceAnswer": "不是。组件重新渲染指的是重新执行组件函数得到新的虚拟 DOM 树，React 会通过 Diff 算法比较新旧虚拟 DOM，只把实际发生变化的最小部分应用到真实 DOM（reconciliation 协调过程）。虚拟 DOM 对象的创建成本很低，真实 DOM 操作才是昂贵的部分被最小化了。所以重新渲染 ≠ 整页重建，大多数情况下只是局部更新。",
+        "correctness": 5,
+        "correctnessReason": "Generated Answer 正确回答了问题，核心事实准确，强调了 React 的协调过程和局部更新，没有遗漏重要信息，也没有加入错误信息。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了问题，明确指出 React 重新渲染并不意味着整个页面都会被重新创建，并解释了 React 的协调过程。没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "重新渲染并不意味着整个页面都会被重新创建。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到 '重新渲染并不意味着整个页面都会被重新创建'，支持该陈述。"
+          },
+          {
+            "claim": "React 会通过协调过程确定需要更新的部分，从而只更新必要的 UI。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到 'React 会通过协调过程确定需要更新的部分'，支持该陈述。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 56,
+            "end": 66
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q015",
+        "question": "为什么列表渲染时不推荐使用数组下标作为 key？",
+        "expectedSources": [
+          "react/performance.md"
+        ],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/server-components.md",
+          "react/state.md",
+          "react/refs.md",
+          "react/memo.md",
+          "react/components.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.2,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/performance.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "列表渲染时不推荐使用数组下标作为 key，因为数组下标作为 key 会导致状态错乱和多余的 DOM 操作，特别是在列表需要排序、插入或删除时。使用稳定且唯一的 key 可以帮助 React 识别哪些元素发生了变化，哪些可以被复用 [Source 1]。",
+        "referenceAnswer": "因为下标 key 无法稳定标识元素身份。当列表发生插入、删除或排序时，同一个下标会对应不同的数据项，React 会误认为'下标 2 的元素'还是原来那个，从而：1) 复用错误的 DOM 和组件状态（如输入框内容串行）；2) 无法正确复用和移动已有节点，产生多余的销毁重建，损失性能；3) 可能引发难以排查的 UI 状态错乱。正确做法是使用数据自身的稳定唯一标识（如 id）作为 key，只有在列表完全静态、不会重排的场景下下标 key 才勉强可用。",
+        "correctness": 4,
+        "correctnessReason": "Generated Answer 基本回答了问题，提到了使用数组下标作为 key 的问题及其导致的状态错乱和多余的 DOM 操作，但遗漏了关于 React 误认为元素身份的具体原因和在静态列表场景下下标 key 的可用性。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了 Question，清楚地解释了为什么不推荐使用数组下标作为 key，并围绕问题的核心意图展开，没有包含无关内容。",
+        "faithfulness": 1,
+        "supportedClaims": 2,
+        "totalClaims": 2,
+        "faithfulnessClaims": [
+          {
+            "claim": "列表渲染时不推荐使用数组下标作为 key，因为数组下标作为 key 会导致状态错乱和多余的 DOM 操作，特别是在列表需要排序、插入或删除时。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 明确指出不要用数组下标做 key，尤其在列表会排序、插入、删除时，下标 key 会导致状态错乱和多余的 DOM 操作。"
+          },
+          {
+            "claim": "使用稳定且唯一的 key 可以帮助 React 识别哪些元素发生了变化，哪些可以被复用。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中提到 key 帮助 React 识别哪些元素变了、哪些可以复用。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 115,
+            "end": 125
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q016",
+        "question": "多个组件需要共享同一份状态时，React 推荐怎么组织这些状态？",
+        "expectedSources": [
+          "react/state.md",
+          "react/props.md"
+        ],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/state.md",
+          "react/memo.md",
+          "react/components.md",
+          "react/server-components.md"
+        ],
+        "hitRate": 1,
+        "recall": 0.5,
+        "precision": 0.2,
+        "reciprocalRank": 0.5,
+        "relevantRanks": [
+          {
+            "source": "react/state.md",
+            "rank": 2
+          }
+        ],
+        "generatedAnswer": "React 推荐将状态提升到多个组件最近的公共父组件中，再通过 props 分发下去。这种方式是共享状态的基础方法。[Source 1]",
+        "referenceAnswer": "React 推荐状态提升（lifting state up）：把共享状态移动到这些组件最近的公共父组件中，由父组件通过 props 把状态传下去，子组件通过调用父组件传入的回调函数来更新状态，保证数据单向流动和唯一数据源。如果提升层级过深导致 prop drilling 严重，或状态属于全局性质，则改用 Context 或专门的状态管理方案。原则是：状态放在恰好需要它的最小公共作用域，不要一开始就全局化。",
+        "correctness": 3,
+        "correctnessReason": "Generated Answer 提到了状态提升和通过 props 分发的基本概念，但遗漏了关于使用回调函数更新状态的细节，以及在 prop drilling 严重时使用 Context 或状态管理方案的建议。这些是重要的信息，影响了答案的完整性。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了问题，清晰地说明了 React 推荐的状态组织方式，没有包含无关内容，完全围绕问题的核心意图展开。",
+        "faithfulness": 1,
+        "supportedClaims": 1,
+        "totalClaims": 1,
+        "faithfulnessClaims": [
+          {
+            "claim": "React 推荐将状态提升到多个组件最近的公共父组件中，再通过 props 分发下去。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到把状态放到最近的公共父组件中，再通过 props 分发下去是状态提升的定义，且这是 React 中共享状态的基础方式。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 58,
+            "end": 68
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q017",
+        "question": "为什么 Server Components 可以减少发送到浏览器的 JavaScript？",
+        "expectedSources": [
+          "react/server-components.md"
+        ],
+        "retrievedSources": [
+          "react/server-components.md",
+          "react/components.md",
+          "react/performance.md"
+        ],
+        "hitRate": 1,
+        "recall": 1,
+        "precision": 0.3333333333333333,
+        "reciprocalRank": 1,
+        "relevantRanks": [
+          {
+            "source": "react/server-components.md",
+            "rank": 1
+          }
+        ],
+        "generatedAnswer": "Server Components 可以减少发送到浏览器的 JavaScript，因为它们的组件逻辑留在服务端执行，而发送给浏览器的只是渲染结果。这种方式减少了需要发送到浏览器的 JavaScript 代码量，从而优化了性能 [Source 1]。",
+        "referenceAnswer": "因为 Server Components 完全在服务器上执行，其渲染产物只是序列化后的 UI 描述（RSC Payload）而不是组件代码，组件的 JavaScript 从不打包进客户端 bundle。服务器上可以直接访问数据库、文件系统等，数据处理逻辑留在服务端；客户端只有 Client Components 的代码需要下载。因此不再需要在浏览器中运行的依赖（如 markdown 解析、日期格式化库）都不会进入 bundle，显著减少客户端 JavaScript 体积。",
+        "correctness": 4,
+        "correctnessReason": "Generated Answer 基本回答了问题，指出 Server Components 在服务器上执行并减少了发送到浏览器的 JavaScript，但遗漏了关于 RSC Payload 和不需要在浏览器中运行的依赖的具体信息，这些是 Reference Answer 中的重要内容。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 直接回答了问题，清楚地解释了 Server Components 如何减少发送到浏览器的 JavaScript，并且没有包含无关内容。",
+        "faithfulness": 0.6666666666666666,
+        "supportedClaims": 2,
+        "totalClaims": 3,
+        "faithfulnessClaims": [
+          {
+            "claim": "Server Components 可以减少发送到浏览器的 JavaScript，因为它们的组件逻辑留在服务端执行。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中明确提到 Server Components 的主要收益是发送给浏览器的 JS 变少，组件逻辑留在服务端执行。"
+          },
+          {
+            "claim": "发送给浏览器的只是渲染结果。",
+            "verdict": "SUPPORTED",
+            "reason": "Context 中说明 Server Components 只在服务端运行一次，把渲染结果发送给浏览器。"
+          },
+          {
+            "claim": "这种方式减少了需要发送到浏览器的 JavaScript 代码量，从而优化了性能。",
+            "verdict": "NOT_SUPPORTED",
+            "reason": "Context 中没有直接支持该陈述的具体内容，未提及性能优化的具体机制或效果。"
+          }
+        ],
+        "citations": [
+          {
+            "sourceId": 1,
+            "start": 113,
+            "end": 123
+          }
+        ],
+        "validCitations": 1,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": 1,
+        "citationSupportRate": 1,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q018",
+        "question": "React Query 的 staleTime 和 cacheTime 分别是什么？",
+        "expectedSources": [],
+        "retrievedSources": [
+          "react/memo.md",
+          "react/performance.md",
+          "react/components.md",
+          "react/refs.md",
+          "react/server-components.md"
+        ],
+        "hitRate": null,
+        "recall": null,
+        "precision": null,
+        "reciprocalRank": null,
+        "relevantRanks": [],
+        "generatedAnswer": "知识库中没有找到相关信息。",
+        "referenceAnswer": "知识库中没有找到关于 React Query 的 staleTime 和 cacheTime 的相关信息。",
+        "correctness": 0,
+        "correctnessReason": "Generated Answer 完全没有回答问题，且与问题明显无关。",
+        "relevance": 5,
+        "relevanceReason": "答案明确说明了知识库中没有找到相关信息，符合高相关性答案的标准。",
+        "faithfulness": 1,
+        "supportedClaims": 0,
+        "totalClaims": 0,
+        "faithfulnessClaims": [],
+        "citations": [],
+        "validCitations": 0,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": null,
+        "citationSupportRate": null,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q019",
+        "question": "React 中 useReducer 和 Redux 有什么区别？",
+        "expectedSources": [],
+        "retrievedSources": [
+          "react/performance.md",
+          "react/state.md",
+          "react/memo.md",
+          "react/components.md",
+          "react/refs.md",
+          "react/server-components.md"
+        ],
+        "hitRate": null,
+        "recall": null,
+        "precision": null,
+        "reciprocalRank": null,
+        "relevantRanks": [],
+        "generatedAnswer": "知识库中没有找到相关信息。",
+        "referenceAnswer": "知识库中没有找到关于 useReducer 和 Redux 区别的相关信息。",
+        "correctness": 0,
+        "correctnessReason": "Generated Answer 完全没有回答问题，且与问题明显无关。",
+        "relevance": 0,
+        "relevanceReason": "Generated Answer 完全没有回答问题，与 Question 明显无关。",
+        "faithfulness": 1,
+        "supportedClaims": 0,
+        "totalClaims": 0,
+        "faithfulnessClaims": [],
+        "citations": [],
+        "validCitations": 0,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": null,
+        "citationSupportRate": null,
+        "uncitedClaims": 0
+      },
+      {
+        "id": "q020",
+        "question": "React Server Components 中如何使用 Suspense 流式传输 HTML？",
+        "expectedSources": [],
+        "retrievedSources": [
+          "react/server-components.md",
+          "react/performance.md",
+          "react/components.md",
+          "react/context.md",
+          "react/memo.md"
+        ],
+        "hitRate": null,
+        "recall": null,
+        "precision": null,
+        "reciprocalRank": null,
+        "relevantRanks": [],
+        "generatedAnswer": "知识库中没有找到相关信息。",
+        "referenceAnswer": "知识库中没有找到关于 React Server Components 中使用 Suspense 流式传输 HTML 的相关信息。",
+        "correctness": 0,
+        "correctnessReason": "Generated Answer 完全没有回答问题，且与问题明显无关。",
+        "relevance": 5,
+        "relevanceReason": "Generated Answer 明确说明知识库中没有找到相关信息，合理地拒绝了回答，符合高相关性答案的标准。",
+        "faithfulness": 1,
+        "supportedClaims": 0,
+        "totalClaims": 0,
+        "faithfulnessClaims": [],
+        "citations": [],
+        "validCitations": 0,
+        "invalidCitations": 0,
+        "contextSourceIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "citationCoverage": null,
+        "citationSupportRate": null,
+        "uncitedClaims": 0
+      }
+    ]
+  }
+  

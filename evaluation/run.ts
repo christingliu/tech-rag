@@ -10,6 +10,13 @@ import { reciprocalRankFusion } from "../lib/hybrid";
 import { rewriteQuery } from "../lib/query";
 import { judgeAnswerCorrectness, judgeAnswerRelevance , judgeAnswerFaithfulness, judgeAnswerCitationSupport,type FaithfulnessClaim} from "./judge";
 import { validateCitations ,type ParsedCitation} from "./citations";
+
+import {
+  saveEvaluationReport,
+} from "./report";
+import {
+  REGRESSION_DATASET_VERSION,
+} from "./dataset-validation";
 interface EvaluationCase {
   id: string;
   question: string;
@@ -54,6 +61,10 @@ interface EvaluationResult {
 }
 
 const TOP_K = 5;
+
+const runId = `run-${new Date()
+  .toISOString()
+  .replace(/[:.]/g, "-")}`;
 
 async function loadDataset(): Promise<EvaluationCase[]> {
   const filePath = path.join(
@@ -584,11 +595,11 @@ async function main() {
     
 
 
-  console.log("\n====================");
+  /* console.log("\n====================");
   console.log("Evaluation Summary");
-  console.log("====================");
+  console.log("===================="); */
 
-  console.log(
+  /* console.log(
     `Dataset: ${dataset.length}`
   );
 
@@ -651,10 +662,10 @@ async function main() {
   );
 
   console.log("\nDetails:");
-
+ */
   
 
-  for (const result of results) {
+  /* for (const result of results) {
     console.log({
       id: result.id,
 
@@ -717,10 +728,33 @@ async function main() {
         );
       }
     }
-  }
+  } */
+ 
+    const reportPath = await saveEvaluationReport({
+      schemaVersion: 1,
+      runId,
+      createdAt: new Date().toISOString(),
+      datasetVersion: REGRESSION_DATASET_VERSION,
+      metrics: {
+        retrievalHitRateAt5: averageHitRate,
+        retrievalRecallAt5: averageRecall,
+        retrievalPrecisionAt5: averagePrecision,
+        mrr: averageMRR,
+        answerCorrectness: averageCorrectness,
+        answerRelevance: averageRelevance/5,
+        answerFaithfulness: averageFaithfulness,
+        citationValidity: citationValidity,
+      },
+      cases: results.map((r) => ({ ...r })),
+    });
+    console.log(`Evaluation report saved: ${reportPath}`);
 }
 
 main().catch((error) => {
+  //const dataset = getRegressionDataset();
+
+  //console.log(`Regression dataset: ${REGRESSION_DATASET_VERSION}`);
+  //console.log(`Dataset cases: ${dataset.length}`);
   console.error(error);
   process.exit(1);
 });
