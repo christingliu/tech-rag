@@ -1,0 +1,161 @@
+
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import {
+  buildAliasIndex,
+  matchEntity,
+  normalizeEntityName,
+  type KnowledgeNode,
+} from "./entity";
+
+const nodes: KnowledgeNode[] = [
+  {
+    id: "framework-react",
+    name: "React",
+    type: "entity",
+    aliases: ["React.js"],
+  },
+  {
+    id: "hook-use-state",
+    name: "useState",
+    type: "entity",
+    aliases: ["React useState Hook"],
+  },
+  {
+    id: "concept-component-state",
+    name: "组件状态",
+    type: "concept",
+    aliases: ["Component State"],
+  },
+];
+
+describe("normalizeEntityName", () => {
+  it("normalizes case and whitespace", () => {
+    assert.equal(
+      normalizeEntityName("  React   JS "),
+      "react js"
+    );
+  });
+
+  it("normalizes compatible Unicode forms", () => {
+    assert.equal(
+      normalizeEntityName(" Ｒｅａｃｔ "),
+      "react"
+    );
+  });
+});
+
+describe("buildAliasIndex", () => {
+  it("indexes canonical names and aliases", () => {
+    const index = buildAliasIndex(nodes);
+
+    assert.deepEqual(
+      index.get("react"),
+      ["framework-react"]
+    );
+
+    assert.deepEqual(
+      index.get("react.js"),
+      ["framework-react"]
+    );
+  });
+
+  it("does not duplicate one node for repeated aliases", () => {
+    const index = buildAliasIndex([
+      {
+        id: "framework-react",
+        name: "React",
+        type: "entity",
+        aliases: ["react", "React"],
+      },
+    ]);
+
+    assert.deepEqual(
+      index.get("react"),
+      ["framework-react"]
+    );
+  });
+
+  it("rejects duplicate node IDs", () => {
+    assert.throws(
+      () =>
+        buildAliasIndex([
+          {
+            id: "same-id",
+            name: "React",
+            type: "entity",
+            aliases: [],
+          },
+          {
+            id: "same-id",
+            name: "Vue",
+            type: "entity",
+            aliases: [],
+          },
+        ]),
+      /Duplicate KnowledgeNode\.id/
+    );
+  });
+});
+
+describe("matchEntity", () => {
+  const index = buildAliasIndex(nodes);
+
+  it("matches a canonical name", () => {
+    const result = matchEntity("React", index);
+
+    assert.deepEqual(result.candidateIds, [
+      "framework-react",
+    ]);
+    assert.equal(result.ambiguous, false);
+  });
+
+  it("matches a registered alias", () => {
+    const result = matchEntity("REACT.JS", index);
+
+    assert.deepEqual(result.candidateIds, [
+      "framework-react",
+    ]);
+    assert.equal(result.ambiguous, false);
+  });
+
+  it("returns no candidates for an unknown name", () => {
+    const result = matchEntity("UnknownFramework", index);
+
+    assert.deepEqual(result.candidateIds, []);
+    assert.equal(result.ambiguous, false);
+  });
+
+  it("preserves all candidates when an alias is ambiguous", () => {
+    const ambiguousIndex = buildAliasIndex([
+      {
+        id: "language-javascript",
+        name: "JavaScript",
+        type: "entity",
+        aliases: ["JS"],
+      },
+      {
+        id: "runtime-js-example",
+        name: "Example Runtime",
+        type: "entity",
+        aliases: ["JS"],
+      },
+    ]);
+
+    const result = matchEntity("JS", ambiguousIndex);
+
+    assert.deepEqual(result.candidateIds, [
+      "language-javascript",
+      "runtime-js-example",
+    ]);
+    assert.equal(result.ambiguous, true);
+  });
+
+  it("does not match an empty query", () => {
+    const result = matchEntity("   ", index);
+
+    assert.deepEqual(result.candidateIds, []);
+    assert.equal(result.ambiguous, false);
+  });
+});

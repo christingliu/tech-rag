@@ -28,6 +28,7 @@ export interface RetrievalFilter {
   title?: string | null;
   source?: string | null;
   section?: string | null;
+  chunkIndex?: number | null;
 }
 
 export async function retrieve(
