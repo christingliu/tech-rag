@@ -1,13 +1,98 @@
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it,test } from "node:test";
 
 import {
   buildAliasIndex,
   matchEntity,
   normalizeEntityName,
+  resolveEntityWithContext,
   type KnowledgeNode,
 } from "./entity";
+
+import type { KnowledgeGraph } from "./knowledge-type";
+
+test("context resolves a candidate when its neighbor matches the query", () => {
+  const graph: KnowledgeGraph = {
+    nodes: [
+      {
+        id: "react",
+        name: "React",
+        type: "technology",
+        aliases: ["React.js"],
+      },
+      {
+        id: "react-native",
+        name: "React Native",
+        type: "technology",
+        aliases: [],
+      },
+      {
+        id: "hooks",
+        name: "Hooks",
+        type: "concept",
+        aliases: ["React Hooks"],
+      },
+    ],
+    edges: [
+      {
+        id: "edge-react-hooks",
+        sourceId: "react",
+        targetId: "hooks",
+        relation: "supports",
+        evidenceIds: [],
+      },
+      {
+        id: "edge-react-native-hooks",
+        sourceId: "react-native",
+        targetId: "hooks",
+        relation: "uses",
+        evidenceIds: [],
+      },
+    ],
+    evidence: [],
+  };
+
+  const result = resolveEntityWithContext(
+    "React Hooks 怎么使用",
+    ["react", "react-native"],
+    graph,
+  );
+
+  // 两个候选都连接 Hooks，当前上下文不足以区分。
+  assert.equal(result.selectedId, null);
+  assert.equal(result.ambiguous, true);
+});
+
+test("does not select a candidate when context provides no evidence", () => {
+  const graph: KnowledgeGraph = {
+    nodes: [
+      {
+        id: "js",
+        name: "JavaScript",
+        type: "technology",
+        aliases: ["JS"],
+      },
+      {
+        id: "java",
+        name: "Java",
+        type: "technology",
+        aliases: [],
+      },
+    ],
+    edges: [],
+    evidence: [],
+  };
+
+  const result = resolveEntityWithContext(
+    "如何管理状态",
+    ["js", "java"],
+    graph,
+  );
+
+  assert.equal(result.selectedId, null);
+  assert.equal(result.ambiguous, true);
+});
 
 const nodes: KnowledgeNode[] = [
   {

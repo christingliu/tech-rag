@@ -21,6 +21,14 @@ import {
     retrieve,
     type RetrievalFilter,
   } from "./rag";
+
+import {
+    buildAliasIndex,
+    matchEntity,
+    normalizeEntityName,
+    resolveEntityWithContext,
+  } from "./entity";
+
 import type {
   KnowledgeNode,
   KnowledgeEvidence,
@@ -290,7 +298,52 @@ export type {
       );
     }
   
-    const matchedNodes = findGraphNodes(graph, query);
+    //const matchedNodes = findGraphNodes(graph, query);
+
+    // 1. 建立实体名称和别名索引
+const aliasIndex = buildAliasIndex(
+    graph.nodes.map((node) => ({
+      id: node.id,
+      name: node.name,
+      type: "concept" as const,
+      aliases: node.aliases,
+    })),
+  );
+  
+  // 2. 从 query 中提取可匹配的实体候选
+  // 注意：matchEntity 是精确名称/别名匹配，不能直接将整句自然语言作为查询。
+  const normalizedQuery = normalizeEntityName(query);
+  
+  const candidateIds = new Set<string>();
+  
+  for (const [alias] of aliasIndex) {
+    if (normalizedQuery.includes(alias)) {
+      const result = matchEntity(alias, aliasIndex);
+  
+      for (const id of result.candidateIds) {
+        candidateIds.add(id);
+      }
+    }
+  }
+  
+  // 3. 对候选实体进行上下文消歧
+  const resolution = resolveEntityWithContext(
+    query,
+    [...candidateIds],
+    graph,
+  );
+  
+  console.log(resolution.selectedId,'resolution.selectedId')
+  // 4. 确定图谱扩展起点
+  const matchedNodes = resolution.selectedId
+    ? graph.nodes.filter(
+        (node) => node.id === resolution.selectedId,
+      )
+    : resolution.ambiguous
+      ? graph.nodes.filter(
+          (node) => candidateIds.has(node.id),
+        )
+      : [];
   
     const nodeById = new Map(
       graph.nodes.map((node) => [node.id, node]),
@@ -306,7 +359,6 @@ export type {
   
     const selectedEdges = new Map<string, KnowledgeEdge>();
   
-    console.log(frontier,'frontier');
     for (let hop = 0; hop < maxHops; hop++) {
       const nextFrontier = new Set<string>();
   
