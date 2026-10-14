@@ -22,7 +22,8 @@
     "openai": "^6.49.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "vitest": "^4.1.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
