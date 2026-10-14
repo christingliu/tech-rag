@@ -506,8 +506,13 @@ const aliasIndex = buildAliasIndex(
     graph,
   );
   
-  console.log(resolution.selectedId,'resolution.selectedId')
-  // 4. 确定图谱扩展起点
+     // 4. 明确检索状态
+  const status =
+  resolution.selectedId
+    ? "resolved"
+    : candidateIds.size === 0
+      ? "no_match"
+      : "ambiguous";
   
     // 4. 保留候选结果，但只有消歧成功才能启动图谱扩展
     const candidateNodes = graph.nodes.filter(
@@ -523,14 +528,16 @@ const aliasIndex = buildAliasIndex(
       // matchedNodes 用于展示匹配结果：
       // - 消歧成功：只返回选中的实体
       // - 消歧失败：保留候选，方便诊断
-      const matchedNodes = selectedNode
-        ? [selectedNode]
-        : candidateNodes;
-  
-      // 关键：没有明确选中的实体，就不启动 BFS
-      const expansionStartNodes = selectedNode
-        ? [selectedNode]
-        : [];
+      const matchedNodes =
+        status === "resolved" && selectedNode
+          ? [selectedNode]
+          : status === "ambiguous"
+            ? candidateNodes
+            : [];
+
+      // 关键：没有明确选中且存在于图谱中的实体，就不启动 BFS
+      const expansionStartNodes =
+        status === "resolved" && selectedNode ? matchedNodes : [];
   
       const nodeById = new Map(
         graph.nodes.map((node) => [node.id, node]),
@@ -600,6 +607,7 @@ const aliasIndex = buildAliasIndex(
   
     return {
       query,
+      status,
       matchedNodes,
       expandedNodes,
       edges,

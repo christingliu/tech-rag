@@ -30,8 +30,14 @@ export interface KnowledgeGraph {
 
 export interface KnowledgeRetrievalResult {
   query: string;
+  status: KnowledgeRetrievalStatus;
   matchedNodes: KnowledgeNode[];
   expandedNodes: KnowledgeNode[];
   edges: KnowledgeEdge[];
   evidence: KnowledgeEvidence[];
 }
+
+export type KnowledgeRetrievalStatus =
+  | "no_match"
+  | "ambiguous"
+  | "resolved";
