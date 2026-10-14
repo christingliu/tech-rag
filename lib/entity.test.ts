@@ -98,13 +98,13 @@ const nodes: KnowledgeNode[] = [
   {
     id: "framework-react",
     name: "React",
-    type: "entity",
+    type: "technology",
     aliases: ["React.js"],
   },
   {
     id: "hook-use-state",
     name: "useState",
-    type: "entity",
+    type: "technology",
     aliases: ["React useState Hook"],
   },
   {
@@ -151,7 +151,7 @@ describe("buildAliasIndex", () => {
       {
         id: "framework-react",
         name: "React",
-        type: "entity",
+        type: "technology",
         aliases: ["react", "React"],
       },
     ]);
@@ -169,13 +169,13 @@ describe("buildAliasIndex", () => {
           {
             id: "same-id",
             name: "React",
-            type: "entity",
+            type: "technology",
             aliases: [],
           },
           {
             id: "same-id",
             name: "Vue",
-            type: "entity",
+            type: "technology",
             aliases: [],
           },
         ]),
@@ -217,13 +217,13 @@ describe("matchEntity", () => {
       {
         id: "language-javascript",
         name: "JavaScript",
-        type: "entity",
+        type: "technology",
         aliases: ["JS"],
       },
       {
         id: "runtime-js-example",
         name: "Example Runtime",
-        type: "entity",
+        type: "technology",
         aliases: ["JS"],
       },
     ]);

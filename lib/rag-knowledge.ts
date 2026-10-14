@@ -182,51 +182,224 @@ export type {
   // 3. 校验图谱
   // ============================================================
   
-  export function validateKnowledgeGraph(
+  
+export function validateKnowledgeGraph(
     graph: KnowledgeGraph,
   ): string[] {
     const errors: string[] = [];
+  
+    // 0. 校验图谱顶层结构，避免运行时数据不是合法对象。
+    if (
+      !graph ||
+      typeof graph !== "object" ||
+      !Array.isArray(graph.nodes) ||
+      !Array.isArray(graph.edges) ||
+      !Array.isArray(graph.evidence)
+    ) {
+      return [
+        "KnowledgeGraph 结构无效：nodes、edges、evidence 必须是数组",
+      ];
+    }
   
     const nodeIds = new Set<string>();
     const edgeIds = new Set<string>();
     const evidenceIds = new Set<string>();
   
+    const allowedNodeTypes = new Set([
+      "technology",
+      "api",
+      "concept",
+    ]);
+  
+    const isNonEmptyString = (
+      value: unknown,
+    ): value is string =>
+      typeof value === "string" && value.trim().length > 0;
+  
+    // 1. 校验节点结构。
     for (const node of graph.nodes) {
-      if (nodeIds.has(node.id)) {
+      if (!node || typeof node !== "object") {
+        errors.push("节点数据无效：节点必须是对象");
+        continue;
+      }
+  
+      const validId = isNonEmptyString(node.id);
+      const validName = isNonEmptyString(node.name);
+  
+      if (!validId) {
+        errors.push("节点 ID 不能为空");
+      } else if (nodeIds.has(node.id)) {
         errors.push(`重复节点 ID: ${node.id}`);
       }
-      nodeIds.add(node.id);
+  
+      if (validId) {
+        nodeIds.add(node.id);
+      }
+  
+      if (!validName) {
+        errors.push(
+          `节点 ${validId ? node.id : "(无效 ID)"} 的名称不能为空`,
+        );
+      }
+  
+      if (!allowedNodeTypes.has(node.type)) {
+        errors.push(
+          `节点 ${validId ? node.id : "(无效 ID)"} 的类型非法: ${String(node.type)}`,
+        );
+      }
+  
+      if (!Array.isArray(node.aliases)) {
+        errors.push(
+          `节点 ${validId ? node.id : "(无效 ID)"} 的 aliases 必须是数组`,
+        );
+        continue;
+      }
+  
+      const aliasesSeen = new Set<string>();
+  
+      for (const alias of node.aliases) {
+        if (!isNonEmptyString(alias)) {
+          errors.push(
+            `节点 ${validId ? node.id : "(无效 ID)"} 存在空别名或非字符串别名`,
+          );
+          continue;
+        }
+  
+        const normalizedAlias = normalizeText(alias);
+  
+        if (aliasesSeen.has(normalizedAlias)) {
+          errors.push(
+            `节点 ${validId ? node.id : "(无效 ID)"} 存在重复别名: ${alias}`,
+          );
+        }
+  
+        aliasesSeen.add(normalizedAlias);
+      }
+  
+      if (
+        node.description !== undefined &&
+        typeof node.description !== "string"
+      ) {
+        errors.push(
+          `节点 ${validId ? node.id : "(无效 ID)"} 的 description 必须是字符串`,
+        );
+      }
     }
   
+    // 2. 校验 Evidence 结构。
     for (const item of graph.evidence) {
-      if (evidenceIds.has(item.id)) {
+      if (!item || typeof item !== "object") {
+        errors.push("Evidence 数据无效：必须是对象");
+        continue;
+      }
+  
+      const validId = isNonEmptyString(item.id);
+  
+      if (!validId) {
+        errors.push("Evidence ID 不能为空");
+      } else if (evidenceIds.has(item.id)) {
         errors.push(`重复 Evidence ID: ${item.id}`);
       }
-      evidenceIds.add(item.id);
+  
+      if (validId) {
+        evidenceIds.add(item.id);
+      }
+  
+      const label = validId
+        ? `Evidence ${item.id}`
+        : "Evidence (无效 ID)";
+  
+      if (!isNonEmptyString(item.source)) {
+        errors.push(`${label} 的 source 不能为空`);
+      }
+  
+      if (!isNonEmptyString(item.title)) {
+        errors.push(`${label} 的 title 不能为空`);
+      }
+  
+      if (!isNonEmptyString(item.section)) {
+        errors.push(`${label} 的 section 不能为空`);
+      }
+  
+      if (
+        !Number.isInteger(item.chunkIndex) ||
+        item.chunkIndex < 0
+      ) {
+        errors.push(
+          `${label} 的 chunkIndex 必须是非负整数`,
+        );
+      }
     }
   
+    // 3. 校验边结构及引用完整性。
     for (const edge of graph.edges) {
-      if (edgeIds.has(edge.id)) {
+      if (!edge || typeof edge !== "object") {
+        errors.push("边数据无效：边必须是对象");
+        continue;
+      }
+  
+      const validId = isNonEmptyString(edge.id);
+  
+      if (!validId) {
+        errors.push("边 ID 不能为空");
+      } else if (edgeIds.has(edge.id)) {
         errors.push(`重复边 ID: ${edge.id}`);
       }
-      edgeIds.add(edge.id);
   
-      if (!nodeIds.has(edge.sourceId)) {
+      if (validId) {
+        edgeIds.add(edge.id);
+      }
+  
+      const label = validId ? `边 ${edge.id}` : "边 (无效 ID)";
+  
+      if (!isNonEmptyString(edge.sourceId)) {
+        errors.push(`${label} 的 sourceId 不能为空`);
+      } else if (!nodeIds.has(edge.sourceId)) {
         errors.push(
-          `边 ${edge.id} 引用了不存在的 source 节点: ${edge.sourceId}`,
+          `${label} 引用了不存在的 source 节点: ${edge.sourceId}`,
         );
       }
   
-      if (!nodeIds.has(edge.targetId)) {
+      if (!isNonEmptyString(edge.targetId)) {
+        errors.push(`${label} 的 targetId 不能为空`);
+      } else if (!nodeIds.has(edge.targetId)) {
         errors.push(
-          `边 ${edge.id} 引用了不存在的 target 节点: ${edge.targetId}`,
+          `${label} 引用了不存在的 target 节点: ${edge.targetId}`,
         );
       }
+  
+      if (!isNonEmptyString(edge.relation)) {
+        errors.push(`${label} 的 relation 不能为空`);
+      }
+  
+      if (!Array.isArray(edge.evidenceIds)) {
+        errors.push(
+          `${label} 的 evidenceIds 必须是数组`,
+        );
+        continue;
+      }
+  
+      const edgeEvidenceIds = new Set<string>();
   
       for (const evidenceId of edge.evidenceIds) {
+        if (!isNonEmptyString(evidenceId)) {
+          errors.push(
+            `${label} 存在空 Evidence ID 或非字符串 Evidence ID`,
+          );
+          continue;
+        }
+  
+        if (edgeEvidenceIds.has(evidenceId)) {
+          errors.push(
+            `${label} 存在重复 Evidence 引用: ${evidenceId}`,
+          );
+        }
+  
+        edgeEvidenceIds.add(evidenceId);
+  
         if (!evidenceIds.has(evidenceId)) {
           errors.push(
-            `边 ${edge.id} 引用了不存在的 Evidence: ${evidenceId}`,
+            `${label} 引用了不存在的 Evidence: ${evidenceId}`,
           );
         }
       }
@@ -335,27 +508,41 @@ const aliasIndex = buildAliasIndex(
   
   console.log(resolution.selectedId,'resolution.selectedId')
   // 4. 确定图谱扩展起点
-  const matchedNodes = resolution.selectedId
-    ? graph.nodes.filter(
-        (node) => node.id === resolution.selectedId,
-      )
-    : resolution.ambiguous
-      ? graph.nodes.filter(
-          (node) => candidateIds.has(node.id),
-        )
-      : [];
   
-    const nodeById = new Map(
-      graph.nodes.map((node) => [node.id, node]),
-    );
+    // 4. 保留候选结果，但只有消歧成功才能启动图谱扩展
+    const candidateNodes = graph.nodes.filter(
+        (node) => candidateIds.has(node.id),
+      );
   
-    const visitedNodeIds = new Set(
-      matchedNodes.map((node) => node.id),
-    );
+      const selectedNode = resolution.selectedId
+        ? graph.nodes.find(
+            (node) => node.id === resolution.selectedId,
+          )
+        : undefined;
   
-    let frontier = new Set(
-      matchedNodes.map((node) => node.id),
-    );
+      // matchedNodes 用于展示匹配结果：
+      // - 消歧成功：只返回选中的实体
+      // - 消歧失败：保留候选，方便诊断
+      const matchedNodes = selectedNode
+        ? [selectedNode]
+        : candidateNodes;
+  
+      // 关键：没有明确选中的实体，就不启动 BFS
+      const expansionStartNodes = selectedNode
+        ? [selectedNode]
+        : [];
+  
+      const nodeById = new Map(
+        graph.nodes.map((node) => [node.id, node]),
+      );
+  
+      const visitedNodeIds = new Set(
+        expansionStartNodes.map((node) => node.id),
+      );
+  
+      let frontier = new Set(
+        expansionStartNodes.map((node) => node.id),
+      );
   
     const selectedEdges = new Map<string, KnowledgeEdge>();
   

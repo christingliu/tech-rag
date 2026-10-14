@@ -1,6 +1,6 @@
 import type { KnowledgeGraph } from "./rag-knowledge";
 
-export type KnowledgeNodeType = "entity" | "concept";
+export type KnowledgeNodeType = "technology" | "api" | "concept";
 
 export interface KnowledgeNode {
   /** 稳定的规范实体 ID，不随显示名称变化 */
@@ -107,6 +107,7 @@ export function resolveEntityWithContext(
     };
   }
 
+  
   const scores = candidates.map((candidate) => {
     const matchedContext = new Set<string>();
     let score = 0;
@@ -122,7 +123,7 @@ export function resolveEntityWithContext(
       };
     }
 
-    // 查找候选节点的一跳邻居。
+    // 找到候选实体的一跳邻居。
     const neighborIds = new Set<string>();
 
     for (const edge of graph.edges) {
@@ -139,26 +140,28 @@ export function resolveEntityWithContext(
       const neighbor = nodeById.get(neighborId);
       if (!neighbor) continue;
 
-      const neighborNames = [
+      const phrases = [
         neighbor.name,
         ...neighbor.aliases,
       ];
 
-      for (const name of neighborNames) {
-        for (const token of tokenize(name)) {
-          // 只计算查询中出现的上下文词。
-          if (
-            queryTokens.has(token) &&
-            token.length > 1
-          ) {
-            matchedContext.add(token);
-          }
+      for (const phrase of phrases) {
+        const normalizedPhrase = normalizeEntityName(phrase);
+
+        // 忽略空短语，且不允许候选实体通过自身名称给自己加分。
+        if (!normalizedPhrase) continue;
+
+        if (
+          containsContextPhrase(query, normalizedPhrase)
+        ) {
+          matchedContext.add(normalizedPhrase);
         }
       }
     }
 
-    // 每个上下文词只计一次，避免重复别名抬高分数。
-    score += matchedContext.size;
+    // 同一个邻接节点的重复别名不应重复加分。
+    // 不同邻接节点的同一短语也只计一次。
+    score = matchedContext.size;
 
     return {
       nodeId: candidate.id,
@@ -205,6 +208,40 @@ export function normalizeEntityName(name: string): string {
     .toLowerCase()
     .replace(/\s+/g, " ");
 }
+
+
+/**
+ * 判断查询是否包含一个有意义的上下文短语。
+ *
+ * 英文按完整词边界匹配，避免把 state 错误地匹配到 statement。
+ * 中文按连续短语匹配，兼容没有空格的自然语言。
+ */
+export function containsContextPhrase(
+    normalizedQuery: string,
+    phrase: string,
+  ): boolean {
+    const normalizedPhrase = normalizeEntityName(phrase);
+  
+    if (!normalizedQuery || !normalizedPhrase) {
+      return false;
+    }
+  
+    // 中文短语：连续子串匹配即可。
+    if (/[\p{Script=Han}]/u.test(normalizedPhrase)) {
+      return normalizedQuery.includes(normalizedPhrase);
+    }
+  
+    // 英文、数字和下划线：使用词边界，避免部分单词误匹配。
+    const escaped = normalizedPhrase.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+  
+    return new RegExp(
+      `(^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`,
+      "u",
+    ).test(normalizedQuery);
+  }
 
 /**
  * 为规范名称和别名建立反向索引。
