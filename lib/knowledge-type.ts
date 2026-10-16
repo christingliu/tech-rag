@@ -41,3 +41,11 @@ export type KnowledgeRetrievalStatus =
   | "no_match"
   | "ambiguous"
   | "resolved";
+
+export interface GraphTraversalOptions {
+  allowedRelations?: string[];
+  direction?: "outgoing" | "incoming" | "both";
+  maxNodes?: number;
+  /** 按数组中的先后顺序决定关系优先级 */
+  relationPriority?: string[];
+}

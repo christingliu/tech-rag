@@ -202,3 +202,57 @@ test("非法 maxHops 被拒绝", () => {
     /maxHops/,
   );
 });
+
+test("只沿 outgoing 方向扩展", () => {
+  const result = retrieveKnowledgeGraph(
+    createGraph(),
+    "useState",
+    1,
+    { direction: "outgoing" },
+  );
+
+  assert.deepEqual(
+    result.expandedNodes.map((node) => node.id).sort(),
+    ["component-state", "use-state"].sort(),
+  );
+});
+
+test("关系白名单过滤无关关系", () => {
+  const result = retrieveKnowledgeGraph(
+    createGraph(),
+    "useState",
+    2,
+    { allowedRelations: ["manages"] },
+  );
+
+  assert.deepEqual(
+    result.edges.map((edge) => edge.relation),
+    ["manages"],
+  );
+});
+
+test("maxNodes 限制扩展规模", () => {
+  const result = retrieveKnowledgeGraph(
+    createGraph(),
+    "useState",
+    2,
+    { maxNodes: 2 },
+  );
+
+  assert.equal(result.expandedNodes.length, 2);
+});
+
+test("maxHops 为 0 时只返回起始节点", () => {
+  const result = retrieveKnowledgeGraph(
+    createGraph(),
+    "useState",
+    0,
+  );
+
+  assert.deepEqual(
+    result.expandedNodes.map((node) => node.id),
+    ["use-state"],
+  );
+
+  assert.equal(result.edges.length, 0);
+});

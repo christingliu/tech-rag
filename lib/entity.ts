@@ -1,4 +1,4 @@
-import type { KnowledgeGraph } from "./rag-knowledge";
+import type { KnowledgeGraph } from "./knowledge-type";
 
 export type KnowledgeNodeType = "technology" | "api" | "concept";
 

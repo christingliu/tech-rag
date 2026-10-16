@@ -101,6 +101,18 @@ export async function retrieve(
                       },
                     ]
                   : []),
+                
+                ...(filter.chunkIndex !== undefined &&
+                  filter.chunkIndex !== null
+                  ? [
+                      {
+                        key: "chunkIndex",
+                        match: {
+                          value: filter.chunkIndex,
+                        },
+                      },
+                    ]
+                  : [])
               ],
             }
           : undefined,

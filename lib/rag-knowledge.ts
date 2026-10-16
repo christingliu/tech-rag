@@ -35,14 +35,7 @@ import type {
   KnowledgeEdge,
   KnowledgeGraph,
   KnowledgeRetrievalResult,
-} from "./knowledge-type";
-
-export type {
-  KnowledgeNode,
-  KnowledgeEvidence,
-  KnowledgeEdge,
-  KnowledgeGraph,
-  KnowledgeRetrievalResult,
+  GraphTraversalOptions
 } from "./knowledge-type";
 
   async function loadDemoEvidence() {
@@ -454,166 +447,204 @@ export function validateKnowledgeGraph(
   // maxHops = 2：最多扩展两跳
   // ============================================================
   
-  export function retrieveKnowledgeGraph(
-    graph: KnowledgeGraph,
-    query: string,
-    maxHops = 1,
-  ): KnowledgeRetrievalResult {
-    if (!Number.isInteger(maxHops) || maxHops < 0) {
-      throw new Error("maxHops 必须是非负整数");
-    }
   
-    const validationErrors = validateKnowledgeGraph(graph);
-  
-    if (validationErrors.length > 0) {
-      throw new Error(
-        `KnowledgeGraph 校验失败:\n${validationErrors.join("\n")}`,
-      );
-    }
-  
-    //const matchedNodes = findGraphNodes(graph, query);
+export function retrieveKnowledgeGraph(
+  graph: KnowledgeGraph,
+  query: string,
+  maxHops = 1,
+  options: GraphTraversalOptions = {},
+): KnowledgeRetrievalResult {
+  if (!Number.isInteger(maxHops) || maxHops < 0) {
+    throw new Error("maxHops 必须是非负整数");
+  }
 
-    // 1. 建立实体名称和别名索引
-const aliasIndex = buildAliasIndex(
+  const {
+    allowedRelations,
+    direction = "both",
+    maxNodes = 100,
+    relationPriority = [],
+  } = options;
+
+  if (!["outgoing", "incoming", "both"].includes(direction)) {
+    throw new Error("direction 必须是 outgoing、incoming 或 both");
+  }
+
+  if (!Number.isInteger(maxNodes) || maxNodes < 1) {
+    throw new Error("maxNodes 必须是正整数");
+  }
+
+  if (
+    allowedRelations !== undefined &&
+    (!Array.isArray(allowedRelations) ||
+      allowedRelations.some(
+        (relation) =>
+          typeof relation !== "string" || !relation.trim(),
+      ))
+  ) {
+    throw new Error("allowedRelations 必须是非空字符串组成的数组");
+  }
+
+  const errors = validateKnowledgeGraph(graph);
+  if (errors.length > 0) {
+    throw new Error(`KnowledgeGraph 校验失败:\n${errors.join("\n")}`);
+  }
+
+  // 1. 建立别名索引。
+  const aliasIndex = buildAliasIndex(
     graph.nodes.map((node) => ({
       id: node.id,
       name: node.name,
-      type: "concept" as const,
+      type: node.type,
       aliases: node.aliases,
     })),
   );
-  
-  // 2. 从 query 中提取可匹配的实体候选
-  // 注意：matchEntity 是精确名称/别名匹配，不能直接将整句自然语言作为查询。
+
+  // 2. 提取候选实体。
   const normalizedQuery = normalizeEntityName(query);
-  
   const candidateIds = new Set<string>();
-  
-  for (const [alias] of aliasIndex) {
-    if (normalizedQuery.includes(alias)) {
-      const result = matchEntity(alias, aliasIndex);
-  
-      for (const id of result.candidateIds) {
-        candidateIds.add(id);
-      }
+
+  for (const [alias, ids] of aliasIndex) {
+    if (!normalizedQuery.includes(alias)) continue;
+
+    for (const id of ids) {
+      candidateIds.add(id);
     }
   }
-  
-  // 3. 对候选实体进行上下文消歧
+
+  // 3. 实体消歧：只有 resolved 才能启动 BFS。
   const resolution = resolveEntityWithContext(
     query,
     [...candidateIds],
     graph,
   );
-  
-     // 4. 明确检索状态
-  const status =
-  resolution.selectedId
-    ? "resolved"
-    : candidateIds.size === 0
-      ? "no_match"
-      : "ambiguous";
-  
-    // 4. 保留候选结果，但只有消歧成功才能启动图谱扩展
-    const candidateNodes = graph.nodes.filter(
-        (node) => candidateIds.has(node.id),
-      );
-  
-      const selectedNode = resolution.selectedId
-        ? graph.nodes.find(
-            (node) => node.id === resolution.selectedId,
-          )
-        : undefined;
-  
-      // matchedNodes 用于展示匹配结果：
-      // - 消歧成功：只返回选中的实体
-      // - 消歧失败：保留候选，方便诊断
-      const matchedNodes =
-        status === "resolved" && selectedNode
-          ? [selectedNode]
-          : status === "ambiguous"
-            ? candidateNodes
-            : [];
 
-      // 关键：没有明确选中且存在于图谱中的实体，就不启动 BFS
-      const expansionStartNodes =
-        status === "resolved" && selectedNode ? matchedNodes : [];
-  
-      const nodeById = new Map(
-        graph.nodes.map((node) => [node.id, node]),
-      );
-  
-      const visitedNodeIds = new Set(
-        expansionStartNodes.map((node) => node.id),
-      );
-  
-      let frontier = new Set(
-        expansionStartNodes.map((node) => node.id),
-      );
-  
-    const selectedEdges = new Map<string, KnowledgeEdge>();
-  
-    for (let hop = 0; hop < maxHops; hop++) {
-      const nextFrontier = new Set<string>();
-  
-      for (const edge of graph.edges) {
-        console.log(edge,'edge');
-        const sourceMatched = frontier.has(edge.sourceId);
-        const targetMatched = frontier.has(edge.targetId);
-  
-        if (!sourceMatched && !targetMatched) {
+  const status =
+    resolution.selectedId
+      ? "resolved"
+      : candidateIds.size === 0
+        ? "no_match"
+        : "ambiguous";
+
+  const nodeById = new Map(
+    graph.nodes.map((node) => [node.id, node]),
+  );
+
+  const matchedNodes =
+    status === "resolved"
+      ? [nodeById.get(resolution.selectedId!)!]
+      : status === "ambiguous"
+        ? graph.nodes.filter((node) => candidateIds.has(node.id))
+        : [];
+
+  const startIds =
+    status === "resolved" ? matchedNodes.map((node) => node.id) : [];
+
+  // maxNodes 包含起始实体。
+  const visited = new Set<string>();
+  const frontier = new Set<string>();
+
+  for (const id of startIds) {
+    if (visited.size >= maxNodes) break;
+    visited.add(id);
+    frontier.add(id);
+  }
+
+  const relationOrder = new Map(
+    relationPriority.map((relation, index) => [relation, index]),
+  );
+
+  const sortedEdges = [...graph.edges].sort((a, b) => {
+    const priorityA = relationOrder.get(a.relation) ?? Infinity;
+    const priorityB = relationOrder.get(b.relation) ?? Infinity;
+
+    return (
+      priorityA - priorityB ||
+      a.relation.localeCompare(b.relation) ||
+      a.id.localeCompare(b.id)
+    );
+  });
+
+  const selectedEdges = new Map<string, KnowledgeEdge>();
+
+  for (let hop = 0; hop < maxHops && frontier.size > 0; hop++) {
+    const nextFrontier = new Set<string>();
+
+    for (const edge of sortedEdges) {
+      if (
+        allowedRelations &&
+        !allowedRelations.includes(edge.relation)
+      ) {
+        continue;
+      }
+
+      const canFollowOutgoing =
+        direction !== "incoming" && frontier.has(edge.sourceId);
+
+      const canFollowIncoming =
+        direction !== "outgoing" && frontier.has(edge.targetId);
+
+      if (!canFollowOutgoing && !canFollowIncoming) continue;
+
+      // 对于 both，当前边可能从两个已访问端点接触。
+      const neighbors: string[] = [];
+
+      if (canFollowOutgoing) neighbors.push(edge.targetId);
+      if (canFollowIncoming) neighbors.push(edge.sourceId);
+
+      let accepted = false;
+
+      for (const neighborId of neighbors) {
+        if (visited.has(neighborId)) {
+          accepted = true;
           continue;
         }
-  
-        selectedEdges.set(edge.id, edge);
-  
-        const neighborId = sourceMatched
-          ? edge.targetId
-          : edge.sourceId;
-  
-        if (!visitedNodeIds.has(neighborId)) {
-          visitedNodeIds.add(neighborId);
-          nextFrontier.add(neighborId);
-        }
+
+        if (visited.size >= maxNodes) continue;
+
+        visited.add(neighborId);
+        nextFrontier.add(neighborId);
+        accepted = true;
       }
-  
-      frontier = nextFrontier;
-  
-      if (frontier.size === 0) {
-        break;
-      }
+
+      // 只保留实际参与到受限遍历结果中的边。
+      if (accepted) selectedEdges.set(edge.id, edge);
     }
-  
-    const expandedNodes = [...visitedNodeIds]
-      .map((id) => nodeById.get(id))
-      .filter((node): node is KnowledgeNode => node !== undefined);
-  
-    const edges = [...selectedEdges.values()];
-  
-    const evidenceById = new Map(
-      graph.evidence.map((item) => [item.id, item]),
-    );
-  
-    const evidenceIds = new Set(
-      edges.flatMap((edge) => edge.evidenceIds),
-    );
-  
-    console.log(evidenceIds,'evidenceIds');
-    const evidence = [...evidenceIds]
-      .map((id) => evidenceById.get(id))
-      .filter(
-        (item): item is KnowledgeEvidence => item !== undefined,
-      );
-  
-    return {
-      query,
-      status,
-      matchedNodes,
-      expandedNodes,
-      edges,
-      evidence,
-    };
+
+    frontier.clear();
+    for (const id of nextFrontier) frontier.add(id);
   }
+
+  const expandedNodes = [...visited]
+    .map((id) => nodeById.get(id))
+    .filter((node): node is KnowledgeNode => node !== undefined)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const edges = [...selectedEdges.values()].sort(
+    (a, b) => a.id.localeCompare(b.id),
+  );
+
+  const evidenceById = new Map(
+    graph.evidence.map((item) => [item.id, item]),
+  );
+
+  const evidenceIds = new Set(
+    edges.flatMap((edge) => edge.evidenceIds),
+  );
+
+  const evidence = [...evidenceIds]
+    .map((id) => evidenceById.get(id))
+    .filter((item): item is KnowledgeEvidence => item !== undefined)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  return {
+    query,
+    status,
+    matchedNodes,
+    expandedNodes,
+    edges,
+    evidence,
+  };
+}
   
   // ============================================================
   // 6. 打印检索结果
@@ -677,8 +708,7 @@ const aliasIndex = buildAliasIndex(
     >();
   
     for (const evidence of graphResult.evidence) {
-      const key =
-        `${evidence.source}:${evidence.chunkIndex}`;
+      const key = getEvidenceKey(evidence);
   
       if (!uniqueEvidence.has(key)) {
         uniqueEvidence.set(key, evidence);
@@ -724,8 +754,7 @@ const aliasIndex = buildAliasIndex(
           continue;
         }
   
-        const key =
-          `${exactChunk.source}:${exactChunk.chunkIndex}`;
+        const key = getEvidenceKey(exactChunk);
   
         chunksByKey.set(key, exactChunk);
       } catch (error) {
@@ -750,4 +779,18 @@ const aliasIndex = buildAliasIndex(
       // 元数据存在于图谱，但没找到对应 Chunk 的 Evidence
       unresolvedEvidence,
     };
+  }
+
+  function getEvidenceKey(item: {
+    source: string;
+    title: string;
+    section: string;
+    chunkIndex: number;
+  }): string {
+    return JSON.stringify([
+      item.source.trim(),
+      item.title.trim(),
+      item.section.trim(),
+      item.chunkIndex,
+    ]);
   }
