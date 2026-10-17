@@ -178,6 +178,89 @@ function printChecks(checks: MetricCheck[]): void {
   console.log(`SKIP: ${skipped}`);
 }
 
+export interface FusionGateConfig {
+  minRecallDelta: number;
+  minCitationPrecisionDelta: number;
+  maxP95LatencyIncreaseRatio: number;
+  maxTokenIncreaseRatio: number;
+}
+
+export interface FusionGateInput {
+  baselineRecallAtK: number;
+  fusionRecallAtK: number;
+  baselineCitationPrecision: number;
+  fusionCitationPrecision: number;
+  baselineP95Ms: number;
+  fusionP95Ms: number;
+  baselineTokens: number;
+  fusionTokens: number;
+}
+
+export interface FusionGateResult {
+  passed: boolean;
+  checks: {
+    name: string;
+    passed: boolean;
+    actual: number;
+    threshold: number;
+  }[];
+}
+
+export function evaluateFusionGate(
+  input: FusionGateInput,
+  config: FusionGateConfig,
+): FusionGateResult {
+  const checks = [
+    {
+      name: "Recall@K delta",
+      actual: input.fusionRecallAtK - input.baselineRecallAtK,
+      threshold: config.minRecallDelta,
+    },
+    {
+      name: "Citation precision delta",
+      actual:
+        input.fusionCitationPrecision -
+        input.baselineCitationPrecision,
+      threshold: config.minCitationPrecisionDelta,
+    },
+    {
+      name: "P95 latency increase ratio",
+      actual:
+        input.baselineP95Ms > 0
+          ? (input.fusionP95Ms - input.baselineP95Ms) /
+            input.baselineP95Ms
+          : input.fusionP95Ms > 0
+            ? Infinity
+            : 0,
+      threshold: config.maxP95LatencyIncreaseRatio,
+    },
+    {
+      name: "Token increase ratio",
+      actual:
+        input.baselineTokens > 0
+          ? (input.fusionTokens - input.baselineTokens) /
+            input.baselineTokens
+          : input.fusionTokens > 0
+            ? Infinity
+            : 0,
+      threshold: config.maxTokenIncreaseRatio,
+    },
+  ];
+
+  const resultChecks = checks.map((check, index) => ({
+    ...check,
+    passed:
+      index < 2
+        ? check.actual >= check.threshold
+        : check.actual <= check.threshold,
+  }));
+
+  return {
+    passed: resultChecks.every((check) => check.passed),
+    checks: resultChecks,
+  };
+}
+
 async function main(): Promise<void> {
   const [baselineArg, currentArg] = process.argv.slice(2);
 
@@ -237,3 +320,4 @@ main().catch((error: unknown) => {
   console.error("Regression gate error:", error);
   process.exitCode = 1;
 });
+

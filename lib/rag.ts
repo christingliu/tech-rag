@@ -604,6 +604,16 @@ ${item.content}
 `
       )
       .join("\n\n");
+      // 在 answerQuestion() 内，Rerank 完成之后
+// 假设 vectorChunks 和 graphContext 已经准备好
+
+  /* const contextResult = buildBudgetedRagContext({
+      question: rewrittenQuery,
+      vectorChunks,
+      graphContext,
+      contextWindow: 8192,
+      reservedOutputTokens: 1500,
+    }); */
 
   // ========================================
   // 9. LLM
