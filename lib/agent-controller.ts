@@ -70,7 +70,7 @@ export async function runAgent(
     question: string,
     options: AgentControllerOptions,
   ): Promise<AgentRunResult> {
-    console.log(options,'options')
+   
     const maxSteps = options.maxSteps ?? 4;
   
     if (!question.trim()) {
@@ -106,7 +106,7 @@ export async function runAgent(
       };
   
       let decision: AgentDecision;
-      console.log(observation,'observation');
+      console.dir(observation.evidence, { depth: null });
       try {
         decision = await options.decide(observation);
       } catch {
