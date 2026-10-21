@@ -153,6 +153,175 @@ export interface AgentControllerOptions {
   ) => Promise<AgentDecision>;
 }
 
+export type AgentRoute =
+  | {
+      type: "execute_tool";
+      action: AgentAction;
+    }
+  | {
+      type: "finalize";
+      status: "completed" | "failed";
+      stopReason: string;
+      answer?: string;
+    };
+
+
+    export function createDecisionNode(
+      decide: AgentControllerOptions["decide"],
+    ): AgentNode<AgentNodeInput, DecisionNodeOutput> {
+      return {
+        async execute({ state }) {
+          const observation: AgentObservation = {
+            question: state.question,
+            steps: state.currentStep,
+            evidence: [...state.evidence],
+            messages: [...state.messages],
+            lastTool: state.lastTool,
+            lastToolResult: state.lastToolResult,
+          };
+    
+          const decision = await decide(observation);
+    
+          return {
+            decision,
+            update: {
+              messagesToAppend: [
+                {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    event: "decision",
+                    step: state.currentStep + 1,
+                    reason: decision.reason,
+                    done: decision.done,
+                    action: decision.action,
+                    answer: decision.answer,
+                  }),
+                },
+              ],
+            },
+          };
+        },
+      };
+    }
+    
+    export function createToolExecutionNode(
+      tools: AgentControllerOptions["tools"],
+    ): AgentNode<ToolExecutionNodeInput, AgentNodeOutput> {
+      return {
+        async execute({ state, action, toolCallId }) {
+          const tool = tools[action.tool];
+    
+          if (!tool) {
+            throw new Error(`TOOL_NOT_REGISTERED: ${action.tool}`);
+          }
+    
+          const startedAt = Date.now();
+    
+          const callMessage: AgentMessage = {
+            role: "assistant",
+            toolName: action.tool,
+            toolCallId,
+            content: JSON.stringify({
+              event: "tool_call",
+              step: state.currentStep + 1,
+              tool: action.tool,
+              input: action.input,
+              reason: action.reason,
+            }),
+          };
+    
+          try {
+            const result = await tool.execute(action.input);
+            const durationMs = Date.now() - startedAt;
+    
+            return {
+              update: {
+                currentStep: state.currentStep + 1,
+                lastTool: action.tool,
+                lastToolResult: result,
+    
+                traceToAppend: [
+                  {
+                    step: state.currentStep + 1,
+                    action,
+                    success: result.ok,
+                    resultCount: result.metadata?.resultCount,
+                    errorCode: result.error?.code,
+                    durationMs,
+                  },
+                ],
+    
+                evidenceToAppend:
+                  result.ok &&
+                  result.data !== undefined &&
+                  result.data !== null &&
+                  (!Array.isArray(result.data) ||
+                    result.data.length > 0)
+                    ? [result.data]
+                    : [],
+    
+                messagesToAppend: [
+                  callMessage,
+                  {
+                    role: "tool",
+                    toolName: action.tool,
+                    toolCallId,
+                    content: JSON.stringify({
+                      ok: result.ok,
+                      data: result.data,
+                      metadata: result.metadata,
+                      error: result.error,
+                    }),
+                  },
+                ],
+              },
+            };
+          } catch (error) {
+            const durationMs = Date.now() - startedAt;
+    
+            const failedResult = {
+              ok: false,
+              error: {
+                code: "TOOL_EXECUTION_FAILED",
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            };
+    
+            return {
+              update: {
+                currentStep: state.currentStep + 1,
+                lastTool: action.tool,
+                lastToolResult: failedResult,
+    
+                traceToAppend: [
+                  {
+                    step: state.currentStep + 1,
+                    action,
+                    success: false,
+                    errorCode: "TOOL_EXECUTION_FAILED",
+                    durationMs,
+                  },
+                ],
+    
+                messagesToAppend: [
+                  callMessage,
+                  {
+                    role: "tool",
+                    toolName: action.tool,
+                    toolCallId,
+                    content: JSON.stringify(failedResult),
+                  },
+                ],
+              },
+            };
+          }
+        },
+      };
+    }
+
 export async function runAgent(
   question: string,
   options: AgentControllerOptions,
@@ -206,9 +375,13 @@ export async function runAgent(
     try {
       decisionOutput = await decisionNode.execute({ state });
     } catch (error) {
+      state = finalizeAgentState(
+        state,
+        "failed",
+        "DECISION_FAILED",
+      );
+      
       state = applyAgentStateUpdate(state, {
-        status: "failed",
-        stopReason: "DECISION_FAILED",
         messagesToAppend: [
           {
             role: "system",
@@ -223,7 +396,7 @@ export async function runAgent(
           },
         ],
       });
-
+      
       return toResult();
     }
 
@@ -234,79 +407,31 @@ export async function runAgent(
     );
 
     const decision = decisionOutput.decision;
-
-    if (decision.done) {
-      const hasEvidence = state.evidence.some((item) => {
-        if (item === null || item === undefined) {
-          return false;
-        }
-
-        return !Array.isArray(item) || item.length > 0;
-      });
-
-      if (!hasEvidence) {
-        state = applyAgentStateUpdate(state, {
-          status: "failed",
-          stopReason: "NO_EVIDENCE_FOUND",
-        });
-
-        return toResult();
-      }
-
-      if (!decision.answer?.trim()) {
-        state = applyAgentStateUpdate(state, {
-          status: "failed",
-          stopReason: "EMPTY_FINAL_ANSWER",
-        });
-
-        return toResult();
-      }
-
-      state = applyAgentStateUpdate(state, {
-        status: "completed",
-        answer: decision.answer,
-        stopReason: "LLM_FINAL_ANSWER",
-        messagesToAppend: [
-          {
-            role: "assistant",
-            content: decision.answer,
-          },
-        ],
-      });
-
+    const route = routeDecision(state, decision, options.tools);
+    
+    if (route.type === "finalize") {
+      state = finalizeAgentState(
+        state,
+        route.status,
+        route.stopReason,
+        route.answer,
+      );
+    
       return toResult();
     }
-
-    if (!decision.action) {
-      state = applyAgentStateUpdate(state, {
-        status: "failed",
-        stopReason: "MISSING_ACTION",
-      });
-
-      return toResult();
-    }
-
-    if (!options.tools[decision.action.tool]) {
-      state = applyAgentStateUpdate(state, {
-        status: "failed",
-        stopReason: "TOOL_NOT_REGISTERED",
-      });
-
-      return toResult();
-    }
-
+    
+    // 只有 execute_tool 路由会执行到这里。
     const toolCallId = randomUUID();
-
+    
     try {
       const toolOutput = await toolExecutionNode.execute({
         state,
-        action: decision.action,
+        action: route.action,
         toolCallId,
       });
-
+    
       state = applyAgentStateUpdate(state, toolOutput.update);
     } catch (error) {
-      // 兜底处理工具节点自身的意外异常。
       state = applyAgentStateUpdate(state, {
         status: "failed",
         stopReason: "TOOL_NODE_FAILED",
@@ -324,174 +449,19 @@ export async function runAgent(
           },
         ],
       });
-
+    
       return toResult();
     }
   }
 
-  state = applyAgentStateUpdate(state, {
-    status: "max_steps",
-    currentStep: state.maxSteps,
-    stopReason: "MAX_STEPS_REACHED",
-  });
+  // 所有步数用完仍未得到最终答案
+  state = finalizeAgentState(
+    state,
+    "max_steps",
+    "MAX_STEPS_REACHED",
+  );
 
   return toResult();
-}
-
-export function createDecisionNode(
-  decide: AgentControllerOptions["decide"],
-): AgentNode<AgentNodeInput, DecisionNodeOutput> {
-  return {
-    async execute({ state }) {
-      const observation: AgentObservation = {
-        question: state.question,
-        steps: state.currentStep,
-        evidence: [...state.evidence],
-        messages: [...state.messages],
-        lastTool: state.lastTool,
-        lastToolResult: state.lastToolResult,
-      };
-
-      const decision = await decide(observation);
-
-      return {
-        decision,
-        update: {
-          messagesToAppend: [
-            {
-              role: "assistant",
-              content: JSON.stringify({
-                event: "decision",
-                step: state.currentStep + 1,
-                reason: decision.reason,
-                done: decision.done,
-                action: decision.action,
-                answer: decision.answer,
-              }),
-            },
-          ],
-        },
-      };
-    },
-  };
-}
-
-export function createToolExecutionNode(
-  tools: AgentControllerOptions["tools"],
-): AgentNode<ToolExecutionNodeInput, AgentNodeOutput> {
-  return {
-    async execute({ state, action, toolCallId }) {
-      const tool = tools[action.tool];
-
-      if (!tool) {
-        throw new Error(`TOOL_NOT_REGISTERED: ${action.tool}`);
-      }
-
-      const startedAt = Date.now();
-
-      const callMessage: AgentMessage = {
-        role: "assistant",
-        toolName: action.tool,
-        toolCallId,
-        content: JSON.stringify({
-          event: "tool_call",
-          step: state.currentStep + 1,
-          tool: action.tool,
-          input: action.input,
-          reason: action.reason,
-        }),
-      };
-
-      try {
-        const result = await tool.execute(action.input);
-        const durationMs = Date.now() - startedAt;
-
-        return {
-          update: {
-            currentStep: state.currentStep + 1,
-            lastTool: action.tool,
-            lastToolResult: result,
-
-            traceToAppend: [
-              {
-                step: state.currentStep + 1,
-                action,
-                success: result.ok,
-                resultCount: result.metadata?.resultCount,
-                errorCode: result.error?.code,
-                durationMs,
-              },
-            ],
-
-            evidenceToAppend:
-              result.ok &&
-              result.data !== undefined &&
-              result.data !== null &&
-              (!Array.isArray(result.data) ||
-                result.data.length > 0)
-                ? [result.data]
-                : [],
-
-            messagesToAppend: [
-              callMessage,
-              {
-                role: "tool",
-                toolName: action.tool,
-                toolCallId,
-                content: JSON.stringify({
-                  ok: result.ok,
-                  data: result.data,
-                  metadata: result.metadata,
-                  error: result.error,
-                }),
-              },
-            ],
-          },
-        };
-      } catch (error) {
-        const durationMs = Date.now() - startedAt;
-
-        const failedResult = {
-          ok: false,
-          error: {
-            code: "TOOL_EXECUTION_FAILED",
-            message:
-              error instanceof Error
-                ? error.message
-                : String(error),
-          },
-        };
-
-        return {
-          update: {
-            currentStep: state.currentStep + 1,
-            lastTool: action.tool,
-            lastToolResult: failedResult,
-
-            traceToAppend: [
-              {
-                step: state.currentStep + 1,
-                action,
-                success: false,
-                errorCode: "TOOL_EXECUTION_FAILED",
-                durationMs,
-              },
-            ],
-
-            messagesToAppend: [
-              callMessage,
-              {
-                role: "tool",
-                toolName: action.tool,
-                toolCallId,
-                content: JSON.stringify(failedResult),
-              },
-            ],
-          },
-        };
-      }
-    },
-  };
 }
 
 export function applyAgentStateUpdate(
@@ -512,4 +482,87 @@ export function applyAgentStateUpdate(
     messages: [...state.messages, ...messagesToAppend],
     trace: [...state.trace, ...traceToAppend],
   };
+}
+
+export function routeDecision(
+  state: Readonly<AgentState>,
+  decision: AgentDecision,
+  tools: AgentControllerOptions["tools"],
+): AgentRoute {
+  if (decision.done) {
+    const hasEvidence = state.evidence.some((item) => {
+      if (item === null || item === undefined) {
+        return false;
+      }
+
+      return !Array.isArray(item) || item.length > 0;
+    });
+
+    if (!hasEvidence) {
+      return {
+        type: "finalize",
+        status: "failed",
+        stopReason: "NO_EVIDENCE_FOUND",
+      };
+    }
+
+    if (!decision.answer?.trim()) {
+      return {
+        type: "finalize",
+        status: "failed",
+        stopReason: "EMPTY_FINAL_ANSWER",
+      };
+    }
+
+    return {
+      type: "finalize",
+      status: "completed",
+      stopReason: "LLM_FINAL_ANSWER",
+      answer: decision.answer,
+    };
+  }
+
+  if (!decision.action) {
+    return {
+      type: "finalize",
+      status: "failed",
+      stopReason: "MISSING_ACTION",
+    };
+  }
+
+  if (!tools[decision.action.tool]) {
+    return {
+      type: "finalize",
+      status: "failed",
+      stopReason: "TOOL_NOT_REGISTERED",
+    };
+  }
+
+  return {
+    type: "execute_tool",
+    action: decision.action,
+  };
+}
+
+export function finalizeAgentState(
+  state: AgentState,
+  status: "completed" | "failed" | "max_steps",
+  stopReason: string,
+  answer?: string,
+): AgentState {
+  return applyAgentStateUpdate(state, {
+    status,
+    stopReason,
+    answer,
+    ...(status === "completed" && answer
+      ? {
+          messagesToAppend: [
+            {
+              role: "assistant" as const,
+              content: answer,
+            },
+          ],
+        }
+      : {}),
+  });
 }
