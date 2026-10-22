@@ -14,7 +14,8 @@
     "evaluate": "tsx evaluation/run.ts",
     "test:error": "tsx evaluation/error-test.ts",
     "evaluation:validate-dataset": "tsx -e \"import { validateDataset } from './evaluation/dataset-validation'; validateDataset(); console.log('Dataset validation passed.')\"",
-    "test:agent": "tsx scripts/test-agent.ts && tsx scripts/test-agent-dynamic.ts && tsx scripts/test-agent-multistep.ts && tsx scripts/test-agent-max-step.ts && tsx scripts/test-agent-tool-failure.ts && tsx scripts/test-agent-tool-throw.ts && tsx scripts/test-agent-no-evidence.ts && tsx scripts/test-agent-failure-observability.ts && tsx scripts/test-agent-state-messages.ts"
+    "test:agent": "tsx scripts/test-agent.ts && tsx scripts/test-agent-dynamic.ts && tsx scripts/test-agent-multistep.ts && tsx scripts/test-agent-max-step.ts && tsx scripts/test-agent-tool-failure.ts && tsx scripts/test-agent-tool-throw.ts && tsx scripts/test-agent-no-evidence.ts && tsx scripts/test-agent-failure-observability.ts && tsx scripts/test-agent-state-messages.ts",
+     "test:llm-router": "tsx scripts/test-llm-query-router.ts"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.18.0",
