@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 export type AgentToolName =
   | "vector_search"
   | "keyword_search"
-  | "graph_search";
+  | "graph_search"
+  | "entity_lookup";
 
 export interface AgentAction {
   tool: AgentToolName;

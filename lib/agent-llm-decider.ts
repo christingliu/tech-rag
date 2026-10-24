@@ -12,6 +12,7 @@ const ALLOWED_TOOLS = new Set<AgentToolName>([
   "vector_search",
   "keyword_search",
   "graph_search",
+  "entity_lookup",
 ]);
 
 // 将本项目允许调用的工具描述给模型。
@@ -89,6 +90,32 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "entity_lookup",
+      description:
+        "根据实体规范名称或别名查询实体候选。适合实体名称确认、别名查询和实体歧义消解。只负责实体匹配，不负责查询实体关系。",
+      strict: true,
+      parameters: {
+        type: "object",
+        properties: {
+          entity: {
+            type: "string",
+            description:
+              "需要精确匹配的实体名称或别名，例如 useState、React",
+          },
+          context: {
+            type: "string",
+            description:
+              "完整问题或用于消歧的上下文；没有额外上下文时传空字符串",
+          },
+        },
+        required: ["entity", "context"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `
@@ -97,7 +124,14 @@ const SYSTEM_PROMPT = `
 你可以使用以下工具：
 - vector_search：语义向量检索
 - keyword_search：关键词检索
-- graph_search：知识图谱检索
+- graph_search：知识图谱关系与证据检索
+- entity_lookup：精确匹配实体名称、查询别名和消歧
+
+实体查询规则：
+1. entity_lookup 的 entity 应是具体实体名称或别名，不要直接传整句自然语言。
+2. context 应包含有助于区分候选实体的上下文。
+3. entity_lookup 返回 ambiguous 时，不要擅自把任意候选视为已确认实体。
+4. 需要查询实体关系时，再使用 graph_search。
 
 工作规则：
 1. 先分析用户问题，以及已经取得的检索证据。
@@ -142,6 +176,31 @@ function validateToolInput(
     throw new Error("TOOL_INPUT_NOT_OBJECT");
   }
 
+  if (tool === "entity_lookup") {
+    const entity = input.entity;
+    const context = input.context;
+  
+    if (
+      typeof entity !== "string" ||
+      !entity.trim() ||
+      entity.length > 200
+    ) {
+      throw new Error("INVALID_TOOL_ENTITY");
+    }
+  
+    if (
+      typeof context !== "string" ||
+      context.length > 1000
+    ) {
+      throw new Error("INVALID_TOOL_CONTEXT");
+    }
+  
+    return {
+      entity: entity.trim(),
+      context: context.trim(),
+    };
+  }
+  
   if (
     typeof input.query !== "string" ||
     !input.query.trim() ||
@@ -179,6 +238,8 @@ function validateToolInput(
   ) {
     throw new Error("INVALID_GRAPH_HOPS");
   }
+
+ 
 
   return {
     query: input.query.trim(),

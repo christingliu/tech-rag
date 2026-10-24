@@ -138,6 +138,16 @@ import type {
     },
   ];
 
+  export function getDemoGraphStructure(): {
+    nodes: KnowledgeNode[];
+    edges: KnowledgeEdge[];
+  } {
+    return {
+      nodes: demoNodes,
+      edges: demoEdges,
+    };
+  }
+
   let demoGraphPromise: Promise<KnowledgeGraph> | null = null;
 
   /**
