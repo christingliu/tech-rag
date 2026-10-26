@@ -110,7 +110,7 @@ async function generateDirectAnswer(
         llmTimer.end();
 
       trace.llm = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         latencyMs,
       };
 
@@ -144,7 +144,7 @@ async function generateDirectAnswer(
         llmTimer.end();
 
       trace.llm = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         latencyMs,
       };
 
@@ -599,7 +599,7 @@ try {
 
     if (trace) {
       trace.rerank = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         before:
           hybridResults.length,
         after:
@@ -628,7 +628,7 @@ try {
 
     if (trace) {
       trace.rerank = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         before:
           hybridResults.length,
         after:
@@ -940,7 +940,7 @@ export async function answerQuestionStream(
       const latencyMs = llmTimer.end();
   
       trace.llm = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         latencyMs,
       };
   

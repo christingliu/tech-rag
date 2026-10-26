@@ -118,6 +118,46 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
+
+const TOOL_FALLBACK_RULES = `
+## Tool Result Evaluation and Fallback Rules
+
+Before selecting the next action, inspect the previous tool results.
+
+1. Empty result detection
+- Determine whether the previous tool returned any useful evidence.
+- Do not rely only on whether the tool call succeeded.
+- A successful tool call with zero useful results is not sufficient evidence.
+- Distinguish an empty result from a tool execution failure.
+
+2. Repeated tool call detection
+- Inspect the execution history before selecting a tool.
+- Do not repeat the same tool with the same effective input when
+  the previous call returned no useful evidence.
+- A retry is justified only when the query, entity, filters, scope,
+  or other meaningful input has changed and the change may improve results.
+
+3. Alternative tool selection
+- If a search returns no useful evidence, consider a different tool
+  that can provide complementary evidence.
+- Prefer keyword_search for exact terms, names, identifiers, or API symbols.
+- Prefer graph_search for entity relationships and dependency questions.
+- Prefer vector_search for semantic similarity and conceptual questions.
+- Prefer entity_lookup when entity resolution is still needed.
+- Choose based on the question and previous results, not a fixed sequence.
+
+4. Stop when no useful alternative remains
+- If no available tool is likely to provide new evidence, stop searching.
+- Do not repeatedly call tools merely to exhaust the step budget.
+- If evidence remains insufficient, state that limitation honestly.
+- Never invent evidence to justify an answer.
+
+5. Evidence-based completion
+- Generate a final answer when sufficient evidence is available.
+- Do not claim that a tool found evidence unless its result supports that claim.
+`;
+
+
 const SYSTEM_PROMPT = `
 你是一个基于现有知识库的 Agent。
 
@@ -254,12 +294,12 @@ export async function decideWithLlm(
   observation: AgentObservation,
 ): Promise<AgentDecision> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.4-mini",
     temperature: 0,
     messages: [
       {
         role: "system",
-        content: SYSTEM_PROMPT,
+        content: SYSTEM_PROMPT + `${TOOL_FALLBACK_RULES}`,
       },
       {
         role: "user",

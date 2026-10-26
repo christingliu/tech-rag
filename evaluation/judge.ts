@@ -104,7 +104,7 @@ ${generatedAnswer}
   const response =
     await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         messages: [
           {
             role: "system",
@@ -201,7 +201,7 @@ ${generatedAnswer}
   const response =
     await withTimeout(
       openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         messages: [
           {
             role: "system",
@@ -351,7 +351,7 @@ export async function judgeAnswerFaithfulness(
 
   const response = await withTimeout(
     openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-mini",
       messages: [
         {
           role: "system",
@@ -536,7 +536,7 @@ ${generatedAnswer}
 
   const response = await withTimeout(
     openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-mini",
       messages: [
         {
           role: "system",

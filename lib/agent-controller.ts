@@ -401,6 +401,8 @@ export async function runAgent(
       return toResult();
     }
 
+    console.log(decisionOutput,'decisionOutput');
+
     // 先应用决策节点更新，保证后续节点看到最新消息历史。
     state = applyAgentStateUpdate(
       state,
@@ -430,7 +432,7 @@ export async function runAgent(
         action: route.action,
         toolCallId,
       });
-    
+      console.log(toolOutput,'toolOutput');
       state = applyAgentStateUpdate(state, toolOutput.update);
     } catch (error) {
       state = applyAgentStateUpdate(state, {

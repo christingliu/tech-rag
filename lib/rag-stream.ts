@@ -509,7 +509,7 @@ export async function prepareRagContext(
 
     if (trace) {
       trace.rerank = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
 
         before:
           hybridResults.length,
@@ -541,7 +541,7 @@ export async function prepareRagContext(
 
     if (trace) {
       trace.rerank = {
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
 
         before:
           hybridResults.length,
@@ -835,7 +835,7 @@ ${item.content}
     const latencyMs = llmTimer.end();
 
     trace.llm = {
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-mini",
       latencyMs,
     };
 

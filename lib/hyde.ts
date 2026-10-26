@@ -39,7 +39,7 @@ ${query}
   try {
     const response =
       await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         messages: [
           {
             role: "user",

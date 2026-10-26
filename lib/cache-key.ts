@@ -2,7 +2,7 @@ import type { RetrievalFilter } from "./rag";
 
 const CACHE_KEY_VERSION = "v1";
 
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-5.4-mini";
 
 const PROMPT_VERSION = "v4.3";
 

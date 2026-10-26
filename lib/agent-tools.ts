@@ -185,6 +185,14 @@ export function createAgentTools(): Partial<
           maxHops,
         );
 
+
+console.log(
+  "[graph_search] chunks:",
+  data.chunks.length,
+);
+
+console.dir(data, { depth: 4 });
+
         return {
           data,
           resultCount: data.chunks.length,

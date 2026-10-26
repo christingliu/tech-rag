@@ -213,14 +213,14 @@ import {
         },
   
         rerank: {
-          model: "gpt-4o-mini",
+          model: "gpt-5.4-mini",
           before: 10,
           after: 3,
           latencyMs: 300,
         },
   
         llm: {
-          model: "gpt-4o-mini",
+          model: "gpt-5.4-mini",
           latencyMs: 500,
         },
   

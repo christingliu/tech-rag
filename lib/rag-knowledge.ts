@@ -74,7 +74,7 @@ import type {
       id: "react",
       name: "React",
       type: "technology",
-      aliases: ["React.js", "ReactJS"],
+      aliases: [ "ReactJS"],
       description: "用于构建用户界面的 JavaScript 库",
     },
     {
@@ -547,7 +547,9 @@ export function retrieveKnowledgeGraph(
         : [];
 
   const startIds =
-    status === "resolved" ? matchedNodes.map((node) => node.id) : [];
+        status === "no_match"
+          ? []
+          : matchedNodes.map((node) => node.id);
 
   // maxNodes 包含起始实体。
   const visited = new Set<string>();
@@ -711,6 +713,7 @@ export function retrieveKnowledgeGraph(
       maxHops,
     );
   
+    console.log(graphResult,'graphResult');
     // 2. 根据 source + chunkIndex 去重 Evidence
     const uniqueEvidence = new Map<
       string,
