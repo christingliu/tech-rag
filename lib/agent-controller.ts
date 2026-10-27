@@ -323,6 +323,71 @@ export type AgentRoute =
       };
     }
 
+
+    function stableSerialize(value: unknown): string {
+      if (Array.isArray(value)) {
+        return `[${value.map(stableSerialize).join(",")}]`;
+      }
+    
+      if (value !== null && typeof value === "object") {
+        const entries = Object.entries(
+          value as Record<string, unknown>,
+        ).sort(([a], [b]) => a.localeCompare(b));
+    
+        return `{${entries
+          .map(
+            ([key, item]) =>
+              `${JSON.stringify(key)}:${stableSerialize(item)}`,
+          )
+          .join(",")}}`;
+      }
+    
+      return JSON.stringify(value) ?? String(value);
+    }
+    
+    function createToolCallSignature(action: AgentAction): string {
+      return `${action.tool}:${stableSerialize(action.input)}`;
+    }
+    
+    function isEmptyOrFailedToolResult(result: unknown): boolean {
+      if (result === null || typeof result !== "object") {
+        return true;
+      }
+    
+      const value = result as {
+        ok?: boolean;
+        data?: unknown;
+        metadata?: { resultCount?: number };
+      };
+    
+      if (value.ok !== true) {
+        return true;
+      }
+    
+      if (
+        value.data === null ||
+        value.data === undefined ||
+        (Array.isArray(value.data) && value.data.length === 0) ||
+        (typeof value.data === "string" && !value.data.trim())
+      ) {
+        return true;
+      }
+    
+      if (
+        typeof value.metadata?.resultCount === "number" &&
+        value.metadata.resultCount <= 0
+      ) {
+        return true;
+      }
+    
+      return (
+        typeof value.data === "object" &&
+        !Array.isArray(value.data) &&
+        Object.keys(value.data).length === 0
+      );
+    }
+    
+
 export async function runAgent(
   question: string,
   options: AgentControllerOptions,
@@ -360,6 +425,8 @@ export async function runAgent(
 
   const decisionNode = createDecisionNode(options.decide);
   const toolExecutionNode = createToolExecutionNode(options.tools);
+  const emptyToolCallSignatures = new Set<string>();
+  const blockedDuplicateSignatures = new Set<string>();
 
   const toResult = (): AgentRunResult => ({
     status: state.status,
@@ -422,6 +489,44 @@ export async function runAgent(
     
       return toResult();
     }
+
+
+const signature = createToolCallSignature(route.action);
+
+if (emptyToolCallSignatures.has(signature)) {
+  const repeatedTwice =
+    blockedDuplicateSignatures.has(signature);
+
+    state = applyAgentStateUpdate(state, {
+      messagesToAppend: [
+        {
+          role: "system",
+          content: JSON.stringify({
+            event: "duplicate_empty_tool_call_blocked",
+            step,
+            tool: route.action.tool,
+            input: route.action.input,
+            instruction: repeatedTwice
+              ? "Repeated blocked call detected. Stop searching and return an insufficient-evidence result if no alternative remains."
+              : "This exact tool call previously returned no useful result or failed. Choose a different tool, meaningfully change the input, or stop.",
+          }),
+        },
+      ],
+    });
+
+    if (repeatedTwice) {
+      state = finalizeAgentState(
+        state,
+        "failed",
+        "REPEATED_TOOL_CALL_BLOCKED",
+      );
+
+      return toResult();
+    }
+
+    blockedDuplicateSignatures.add(signature);
+    continue;
+  }
     
     // 只有 execute_tool 路由会执行到这里。
     const toolCallId = randomUUID();
@@ -434,6 +539,9 @@ export async function runAgent(
       });
       console.log(toolOutput,'toolOutput');
       state = applyAgentStateUpdate(state, toolOutput.update);
+      if (isEmptyOrFailedToolResult(state.lastToolResult)) {
+        emptyToolCallSignatures.add(signature);
+      }
     } catch (error) {
       state = applyAgentStateUpdate(state, {
         status: "failed",
