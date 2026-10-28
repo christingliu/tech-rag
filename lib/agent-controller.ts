@@ -443,6 +443,7 @@ export async function runAgent(
     try {
       decisionOutput = await decisionNode.execute({ state });
     } catch (error) {
+      console.log(error,'error');
       state = finalizeAgentState(
         state,
         "failed",

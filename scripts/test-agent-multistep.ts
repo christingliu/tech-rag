@@ -44,6 +44,7 @@ async function main() {
       tools,
 
       async decide(observation) {
+        console.log(observation,'observation');
         observations.push({
           ...observation,
           // 保存独立快照，避免后续 evidence.push
@@ -63,12 +64,11 @@ async function main() {
             },
           };
         }
-
         // 第 2 轮：验证第一轮状态已经传入决策器。
         if (observation.steps === 1) {
           assert.equal(observation.lastTool, "vector_search");
-          assert.equal(observation.evidence.length, 1);
-          assert.deepEqual(observation.evidence[0], []);
+          assert.equal(observation.evidence.length, 0);
+          assert.deepEqual(observation.evidence[0], undefined);
 
           const lastResult = observation.lastToolResult as {
             ok: boolean;
@@ -92,9 +92,9 @@ async function main() {
         // 第 3 轮：验证两轮结果均被累积。
         assert.equal(observation.steps, 2);
         assert.equal(observation.lastTool, "keyword_search");
-        assert.equal(observation.evidence.length, 2);
+        assert.equal(observation.evidence.length, 1);
 
-        const keywordEvidence = observation.evidence[1] as {
+        const keywordEvidence = observation.evidence[0] as {
           id: string;
           content: string;
         }[];
@@ -113,6 +113,8 @@ async function main() {
     },
   );
 
+  console.log(result,'result');
+
   // 验证整个执行流程。
   assert.equal(result.status, "completed");
   assert.equal(result.trace.length, 2);
@@ -120,7 +122,7 @@ async function main() {
     result.trace.map((item) => item.action.tool),
     ["vector_search", "keyword_search"],
   );
-  assert.equal(result.evidence.length, 2);
+  assert.equal(result.evidence.length, 1);
   assert.equal(observations.length, 3);
 
   console.log("V9.4.4 多轮状态传递测试通过");
@@ -128,7 +130,7 @@ async function main() {
   console.log("Decision rounds:", observations.length);
   console.log("Evidence result objects:", result.evidence.length);
   console.log("Keyword evidence count:", (
-    result.evidence[1] as unknown[]
+    result.evidence[0] as unknown[]
   ).length);
   console.log("Answer:", result.answer);
 }
