@@ -478,8 +478,10 @@ export async function runAgent(
     );
 
     const decision = decisionOutput.decision;
+    console.log(state,'state');
+    console.log(decision,'decision');
     const route = routeDecision(state, decision, options.tools);
-    
+    console.log(route,'route');
     if (route.type === "finalize") {
       state = finalizeAgentState(
         state,

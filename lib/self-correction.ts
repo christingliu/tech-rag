@@ -49,15 +49,79 @@ import {
     maxCorrectionAttempts?: number;
   }
   
-  export interface ReflectionTrace {
-    round: number;
-    answer: string;
-    verdict: VerificationResult["verdict"];
-    action: ReflectionAction;
-    reason: string;
-    retrievalQueries: string[];
-    evidenceCount: number;
+  type ReflectionErrorCode =
+  | "VERIFICATION_FAILED"
+  | "RETRIEVAL_FAILED"
+  | "ANSWER_GENERATION_FAILED";
+
+interface ReflectionTrace {
+  round: number;
+  answer: string;
+  verdict: VerificationResult["verdict"] | "ERROR";
+  action: ReflectionAction | "ERROR";
+  reason: string;
+  retrievalQueries: string[];
+  evidenceCount: number;
+  errorCode?: ReflectionErrorCode;
+}
+
+interface VerifierEvidence {
+    id: string;
+    content: string;
+    source?: string;
   }
+
+
+function appendUniqueEvidence(
+    existing: VerifierEvidence[],
+    incoming: VerifierEvidence[],
+  ): VerifierEvidence[] {
+    const result = [...existing];
+  
+    const usedIds = new Set(
+      result.map((item) => item.id),
+    );
+  
+    const contentById = new Map(
+      result.map((item) => [item.id, item.content]),
+    );
+  
+    for (const item of incoming) {
+      const existingContent = contentById.get(item.id);
+  
+      // 相同 ID、相同内容：视为同一条证据，不重复追加。
+      if (
+        existingContent !== undefined &&
+        existingContent === item.content
+      ) {
+        continue;
+      }
+  
+      let nextId = item.id;
+  
+      // 相同 ID、不同内容：重新分配 ID。
+      if (usedIds.has(nextId)) {
+        let suffix = 2;
+  
+        while (usedIds.has(`${item.id}-${suffix}`)) {
+          suffix++;
+        }
+  
+        nextId = `${item.id}-${suffix}`;
+      }
+  
+      result.push({
+        ...item,
+        id: nextId,
+      });
+  
+      usedIds.add(nextId);
+      contentById.set(nextId, item.content);
+    }
+  
+    return result;
+  }
+  
   
   export interface SelfCorrectionResult extends AgentRunResult {
     answer?: string;
@@ -123,6 +187,7 @@ import {
       initialResult.status !== "completed" ||
       !initialResult.answer
     ) {
+        console.log(111111);
       return baseResult({
         status: initialResult.status,
         stopReason: initialResult.stopReason,
@@ -151,6 +216,8 @@ import {
         answer,
         evidence: normalizedEvidence,
       });
+
+      console.log(latestVerification,'latestVerification');
   
       // 第三阶段：根据验证结果决定下一步。
       latestDecision = decideReflection(
@@ -160,7 +227,7 @@ import {
           maxRetrievalAttempts,
         },
       );
-  
+      console.log(latestDecision,'latestDecision');
       trace.push({
         round,
         answer,
@@ -228,18 +295,55 @@ import {
   
         // 补充检索后没有新增证据，也允许再次验证，
         // 但不会无限重复，因为 retrievalAttempts 有上限。
-        evidence = [...evidence, ...newEvidence];
-  
-        // 使用更新后的证据重新生成答案。
-        answer = await options.generateAnswer({
-          question,
-          evidence,
-          correctionInstructions: [
-            "请根据新增证据重新检查原答案。",
-            "不要保留缺乏证据支持的结论。",
-            "如果证据存在矛盾，请明确说明。",
-          ],
-        });
+        //evidence = [...evidence, ...newEvidence];
+
+        const normalizedNewEvidence = normalizeEvidence(newEvidence);
+
+        evidence = appendUniqueEvidence(
+        evidence as VerifierEvidence[],
+        normalizedNewEvidence,
+        );
+        try{
+            // 使用更新后的证据重新生成答案。
+            answer = await options.generateAnswer({
+            question,
+            evidence,
+            correctionInstructions: [
+                "请根据新增证据重新检查原答案。",
+                "不要保留缺乏证据支持的结论。",
+                "如果证据存在矛盾，请明确说明。",
+            ],
+            });
+        }catch(error){
+            const message =
+                  error instanceof Error
+                    ? error.message
+                    : String(error);
+              
+                trace.push({
+                  round,
+                  answer: "",
+                  verdict: "ERROR",
+                  action: "ERROR",
+                  reason: `答案生成失败: ${message}`,
+                  retrievalQueries: latestDecision.retrievalQueries,
+                  evidenceCount: evidence.length,
+                  errorCode: "ANSWER_GENERATION_FAILED",
+                });
+              
+                return {
+                  ...initialResult,
+                  status: "failed",
+                  answer: undefined,
+                  stopReason: "ANSWER_GENERATION_FAILED",
+                  evidence,
+                  verification:latestVerification,
+                  reflectionDecision: latestDecision,
+                  reflectionTrace:trace,
+                  retrievalAttempts,
+                  correctionAttempts,
+                };
+        }
   
         if (!answer.trim()) {
           return baseResult({
@@ -270,19 +374,50 @@ import {
   
         correctionAttempts++;
   
-        answer = await options.generateAnswer({
-          question,
-          evidence,
-          retainedClaims:
-            latestDecision.retainedClaims.map(
-              (claim) => claim.text,
-            ),
-          correctionInstructions:
-            latestVerification.issues.map(
-              (claim) =>
-                `删除或修正以下未通过验证的结论：${claim.text}。原因：${claim.reason}`,
-            ),
-        });
+        try{
+            answer = await options.generateAnswer({
+              question,
+              evidence,
+              retainedClaims:
+                latestDecision.retainedClaims.map(
+                  (claim) => claim.text,
+                ),
+              correctionInstructions:
+                latestVerification.issues.map(
+                  (claim) =>
+                    `删除或修正以下未通过验证的结论：${claim.text}。原因：${claim.reason}`,
+                ),
+            })
+        }catch(error){
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : String(error);
+              
+                trace.push({
+                  round,
+                  answer: "",
+                  verdict: "ERROR",
+                  action: "ERROR",
+                  reason: `答案生成失败: ${message}`,
+                  retrievalQueries: latestDecision.retrievalQueries,
+                  evidenceCount: evidence.length,
+                  errorCode: "ANSWER_GENERATION_FAILED",
+                });
+              
+                return {
+                  ...initialResult,
+                  status: "failed",
+                  answer: undefined,
+                  stopReason: "ANSWER_GENERATION_FAILED",
+                  evidence,
+                  verification:latestVerification,
+                  reflectionDecision: latestDecision,
+                  reflectionTrace:trace,
+                  retrievalAttempts,
+                  correctionAttempts,
+                };
+        };
   
         if (!answer.trim()) {
           return baseResult({
