@@ -295,14 +295,14 @@ function appendUniqueEvidence(
   
         // 补充检索后没有新增证据，也允许再次验证，
         // 但不会无限重复，因为 retrievalAttempts 有上限。
-        //evidence = [...evidence, ...newEvidence];
-
         const normalizedNewEvidence = normalizeEvidence(newEvidence);
 
         evidence = appendUniqueEvidence(
         evidence as VerifierEvidence[],
         normalizedNewEvidence,
         );
+
+        console.log(evidence,'evidence');
         try{
             // 使用更新后的证据重新生成答案。
             answer = await options.generateAnswer({
