@@ -259,7 +259,6 @@ export function fromVectorChunk(chunk: {
 export function mergeUnifiedEvidence(
     ...groups: UnifiedEvidence[][]
   ): UnifiedEvidence[] {
-    console.log(groups,'groups');
     const result = new Map<string, UnifiedEvidence>();
   
     for (const group of groups) {
