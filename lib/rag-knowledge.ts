@@ -16,7 +16,7 @@
  * 3. 返回相关边及其 Evidence
  * 4. 校验图谱引用完整性
  */
-
+import { createHash } from "node:crypto";
 import {
     retrieve,
     type RetrievalFilter,
@@ -38,27 +38,193 @@ import type {
   GraphTraversalOptions
 } from "./knowledge-type";
 
-  async function loadDemoEvidence() {
-    const chunks = await retrieve(
-      "React useState 状态管理",
-      10,
-      -1,
+interface DemoEdgeEvidenceConfig {
+  edgeId: string;
+  evidenceKeys: string[];
+}
+
+const demoEdgeEvidenceConfigs: DemoEdgeEvidenceConfig[] = [
+  {
+    edgeId: "edge-1",
+    evidenceKeys: [
+      JSON.stringify([
+         'react/state.md',
+         'React State',
+          'React State',
+          0
+      ]),
+      JSON.stringify([
+        'react/state.md',
+         'React State',
+         'useState',
+          1
+      ])
+    ],
+  },
+  {
+    edgeId: "edge-2",
+    evidenceKeys: [
+      JSON.stringify([
+        'react/state.md',
+         'React State',
+         '批量更新',
+         3
+      ]),
+      JSON.stringify([
+        'react/state.md',
+        'React State',
+         '状态提升',
+           4
+      ])
+    ],
+  },
+  {
+    edgeId: "edge-3",
+    evidenceKeys: [
+      JSON.stringify([
+        "react/hooks.md",
+        "React Hooks",
+        "useEffect",
+        2,
+      ]),
+    ],
+  },
+  {
+    edgeId: "edge-4",
+    evidenceKeys: [
+      JSON.stringify([
+        "react/hooks.md",
+        "React Hooks",
+        "React Hooks",
+        0,
+      ]),
+    ],
+  }
+];
+
+function attachDemoEdgeEvidence(
+  evidence: KnowledgeEvidence[],
+): KnowledgeEdge[] {
+  const evidenceKeys = new Set(
+    evidence.map(getEvidenceKey),
+  );
+
+  return demoEdges.map((edge) => {
+    const config = demoEdgeEvidenceConfigs.find(
+      (item) => item.edgeId === edge.id,
     );
-  
-    if (chunks.length === 0) {
+
+    if (!config) {
       throw new Error(
-        "没有检索到真实 Chunk，无法构建 demoGraph Evidence",
+        `EDGE_EVIDENCE_CONFIG_NOT_FOUND: ${edge.id}`,
       );
     }
+
+    const missingKeys = config.evidenceKeys.filter(
+      (key) => !evidenceKeys.has(key),
+    );
+
+    if (missingKeys.length > 0) {
+      throw new Error(
+        `EDGE_EVIDENCE_NOT_FOUND: ${edge.id}: ${missingKeys.join(", ")}`,
+      );
+    }
+
+    const evidenceByKey = new Map(
+      evidence.map((item) => [
+        getEvidenceKey(item),
+        item,
+      ]),
+    );
+
+    return {
+      ...edge,
+      evidenceIds: [
+        ...new Set(
+          config.evidenceKeys.map(
+            (key) => evidenceByKey.get(key)!.id,
+          ),
+        ),
+      ],
+    };
+  });
+}
   
-    return chunks.map((chunk, index) => ({
-      id: `evidence-${index + 1}`,
+function createStableEvidenceId(chunk: {
+  source: string;
+  title: string;
+  section: string;
+  chunkIndex: number;
+}): string {
+  const key = JSON.stringify([
+    chunk.source.trim(),
+    chunk.title.trim(),
+    chunk.section.trim(),
+    chunk.chunkIndex,
+  ]);
+
+  const hash = createHash("sha256")
+    .update(key)
+    .digest("hex")
+    .slice(0, 16);
+
+  return `evidence-${hash}`;
+}
+
+function getEvidenceKey(item: {
+  source: string;
+  title: string;
+  section: string;
+  chunkIndex: number;
+}): string {
+  return JSON.stringify([
+    item.source.trim(),
+    item.title.trim(),
+    item.section.trim(),
+    item.chunkIndex,
+  ]);
+}
+
+async function loadDemoEvidence() {
+  const queries = [
+    "React useState 状态管理",
+    "React useEffect 副作用 外部系统同步",
+  ];
+
+  const groups = await Promise.all(
+    queries.map((query) => retrieve(query, 10, -1)),
+  );
+
+  const chunks = groups.flat();
+
+  const evidenceByKey = new Map<
+    string,
+    KnowledgeEvidence
+  >();
+
+  for (const chunk of chunks) {
+    const metadata = {
       source: chunk.source,
       title: chunk.title,
       section: chunk.section,
       chunkIndex: chunk.chunkIndex,
-    }));
+    };
+
+    const key = getEvidenceKey(metadata);
+
+    if (evidenceByKey.has(key)) {
+      continue;
+    }
+
+    evidenceByKey.set(key, {
+      id: createStableEvidenceId(metadata),
+      ...metadata,
+    });
   }
+  //14 key 
+  //console.log(evidenceByKey,'evidenceByKey');
+  return [...evidenceByKey.values()];
+}
 
   // ============================================================
   // 1. 示例图谱
@@ -113,28 +279,28 @@ import type {
       sourceId: "use-state",
       targetId: "component-state",
       relation: "manages",
-      evidenceIds: ["evidence-1"],
+      evidenceIds: [],
     },
     {
       id: "edge-2",
       sourceId: "use-state",
       targetId: "react",
       relation: "belongs_to",
-      evidenceIds: ["evidence-2"],
+      evidenceIds: [],
     },
     {
       id: "edge-3",
       sourceId: "use-effect",
       targetId: "side-effect",
       relation: "handles",
-      evidenceIds: ["evidence-3"],
+      evidenceIds: [],
     },
     {
       id: "edge-4",
       sourceId: "use-effect",
       targetId: "react",
       relation: "belongs_to",
-      evidenceIds: ["evidence-4"],
+      evidenceIds: [],
     },
   ];
 
@@ -158,15 +324,18 @@ import type {
    */
   export function getDemoGraph(): Promise<KnowledgeGraph> {
     if (!demoGraphPromise) {
-      demoGraphPromise = loadDemoEvidence().then(
-        (evidence) => ({
+      demoGraphPromise = loadDemoEvidence()
+        .then((evidence) => ({
           nodes: demoNodes,
-          edges: demoEdges,
+          edges: attachDemoEdgeEvidence(evidence),
           evidence,
-        }),
-      );
+        }))
+        .catch((error) => {
+          demoGraphPromise = null;
+          throw error;
+        });
     }
-
+  
     return demoGraphPromise;
   }
   
@@ -713,7 +882,7 @@ export function retrieveKnowledgeGraph(
       maxHops,
     );
   
-    console.log(graphResult,'graphResult');
+    //console.log(graphResult,'graphResult');
     // 2. 根据 source + chunkIndex 去重 Evidence
     const uniqueEvidence = new Map<
       string,
@@ -794,16 +963,3 @@ export function retrieveKnowledgeGraph(
     };
   }
 
-  function getEvidenceKey(item: {
-    source: string;
-    title: string;
-    section: string;
-    chunkIndex: number;
-  }): string {
-    return JSON.stringify([
-      item.source.trim(),
-      item.title.trim(),
-      item.section.trim(),
-      item.chunkIndex,
-    ]);
-  }

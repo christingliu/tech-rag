@@ -9,10 +9,79 @@ import {
     retrieve,
   } from "../lib/rag";
 
+import { createHash } from "node:crypto";
+
 async function main() {
  const demoGraph = await getDemoGraph();
  
  console.log(demoGraph,'demoGraph');
+
+ console.log("\n========== Evidence Mapping ==========");
+
+console.dir(
+  demoGraph.evidence.map((item) => ({
+    id: item.id,
+    key: JSON.stringify([
+      item.source,
+      item.title,
+      item.section,
+      item.chunkIndex,
+    ]),
+  })),
+  { depth: null },
+);
+
+const queries = [
+  "React useState 状态管理",
+  "React useEffect 副作用 外部系统同步",
+];
+
+for (const query of queries) {
+  console.log(`\n========== Query: ${query} ==========`);
+
+  const chunks = await retrieve(query, 10, -1);
+
+  console.dir(
+    chunks.map((chunk) => ({
+      id: `evidence-${createHash("sha256")
+        .update(
+          JSON.stringify([
+            chunk.source.trim(),
+            chunk.title.trim(),
+            chunk.section.trim(),
+            chunk.chunkIndex,
+          ]),
+        )
+        .digest("hex")
+        .slice(0, 16)}`,
+      source: chunk.source,
+      title: chunk.title,
+      section: chunk.section,
+      chunkIndex: chunk.chunkIndex,
+      content: chunk.content,
+    })),
+    { depth: null },
+  );
+}
+
+console.log("\n========== Retrieved Chunks ==========");
+
+  const chunks = await retrieve(
+    "React useState 状态管理",
+    10,
+    -1,
+  );
+
+  console.dir(
+    chunks.map((chunk) => ({
+      source: chunk.source,
+      title: chunk.title,
+      section: chunk.section,
+      chunkIndex: chunk.chunkIndex,
+      content: chunk.content,
+    })),
+    { depth: null },
+  );
 
  const result = await retrieveKnowledgeEvidence(
     demoGraph,
