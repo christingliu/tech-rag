@@ -13,6 +13,7 @@ const ALLOWED_TOOLS = new Set<AgentToolName>([
   "keyword_search",
   "graph_search",
   "entity_lookup",
+  "graph_vector_search",
 ]);
 
 // 将本项目允许调用的工具描述给模型。
@@ -116,6 +117,38 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "graph_vector_search",
+      description:
+        "同时使用向量检索和知识图谱检索。适合既需要语义理解，又需要实体关系或依赖关系证据的问题。",
+      strict: true,
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "混合检索查询文本",
+          },
+          vectorTopK: {
+            type: "integer",
+            description: "向量检索数量，范围 1 到 10",
+          },
+          maxHops: {
+            type: "integer",
+            description: "图谱扩展跳数，范围 0 到 2",
+          },
+        },
+        required: [
+          "query",
+          "vectorTopK",
+          "maxHops",
+        ],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 
@@ -166,12 +199,16 @@ const SYSTEM_PROMPT = `
 - keyword_search：关键词检索
 - graph_search：知识图谱关系与证据检索
 - entity_lookup：精确匹配实体名称、查询别名和消歧
+- graph_vector_search：同时执行向量检索和知识图谱检索，
+  适合需要结合语义内容与实体关系的问题。
 
 实体查询规则：
 1. entity_lookup 的 entity 应是具体实体名称或别名，不要直接传整句自然语言。
 2. context 应包含有助于区分候选实体的上下文。
 3. entity_lookup 返回 ambiguous 时，不要擅自把任意候选视为已确认实体。
 4. 需要查询实体关系时，再使用 graph_search。
+- Prefer graph_vector_search when a question needs both
+  semantic evidence and graph relationship context.
 
 工作规则：
 1. 先分析用户问题，以及已经取得的检索证据。
@@ -266,6 +303,33 @@ function validateToolInput(
     return {
       query: input.query.trim(),
       limit,
+    };
+  }
+
+  if (tool === "graph_vector_search") {
+    const vectorTopK = input.vectorTopK;
+    const maxHops = input.maxHops;
+  
+    if (
+      !Number.isInteger(vectorTopK) ||
+      (vectorTopK as number) < 1 ||
+      (vectorTopK as number) > 10
+    ) {
+      throw new Error("INVALID_VECTOR_TOP_K");
+    }
+  
+    if (
+      !Number.isInteger(maxHops) ||
+      (maxHops as number) < 0 ||
+      (maxHops as number) > 2
+    ) {
+      throw new Error("INVALID_GRAPH_HOPS");
+    }
+  
+    return {
+      query: input.query.trim(),
+      vectorTopK,
+      maxHops,
     };
   }
 

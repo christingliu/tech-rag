@@ -4,7 +4,8 @@ export type AgentToolName =
   | "vector_search"
   | "keyword_search"
   | "graph_search"
-  | "entity_lookup";
+  | "entity_lookup"
+  | "graph_vector_search";
 
 export interface AgentAction {
   tool: AgentToolName;

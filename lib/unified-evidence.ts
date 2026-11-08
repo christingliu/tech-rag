@@ -260,7 +260,7 @@ export function mergeUnifiedEvidence(
     ...groups: UnifiedEvidence[][]
   ): UnifiedEvidence[] {
     const result = new Map<string, UnifiedEvidence>();
-  
+    console.log(groups, 'groups');
     for (const group of groups) {
       for (const item of group) {
         const existing = result.get(item.id);

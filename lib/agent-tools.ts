@@ -20,6 +20,8 @@ import {
 
 import type { KnowledgeGraph } from "./knowledge-type";
 
+import { retrieveHybrid } from "./hybrid-retriever";
+
 function readEntity(input: Record<string, unknown>): string {
   const entity = input.entity;
 
@@ -272,6 +274,38 @@ console.dir(data, { depth: 4 });
             resolution,
           },
           resultCount: candidates.length,
+        };
+      },
+    ),
+
+    graph_vector_search: createTool(
+      "graph_vector_search",
+      async (input) => {
+        const query = readQuery(input);
+    
+        const vectorTopK = readInteger(
+          input.vectorTopK,
+          "vectorTopK",
+          1,
+          10,
+        );
+    
+        const maxHops = readInteger(
+          input.maxHops,
+          "maxHops",
+          0,
+          2,
+        );
+    
+        const data = await retrieveHybrid(query, {
+          vectorTopK,
+          maxHops,
+          scoreThreshold: 0.3,
+        });
+    
+        return {
+          data,
+          resultCount: data.evidence.length,
         };
       },
     ),
