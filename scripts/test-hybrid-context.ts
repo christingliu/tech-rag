@@ -91,7 +91,7 @@ function createOptions(contextWindow = 2000) {
 }
 
 // 2. Context 必须保留原始文档元数据和 Graph 关系。
-/* {
+{
   const evidence = createEvidence(
     "React useEffect 用于处理副作用。",
     1,
@@ -124,10 +124,10 @@ function createOptions(contextWindow = 2000) {
   assert.ok(result.context.includes(evidence.content));
 
   console.log("PASS: 原始元数据和 Graph 关系保留");
-} */
+}
 
 // 3. 超出预算时，只保留完整 Evidence，不截断内容。
-/* {
+{
   const evidence1 = createEvidence(
     "A".repeat(180),
     0,
@@ -173,10 +173,10 @@ function createOptions(contextWindow = 2000) {
   );
 
   console.log("PASS: Token 超预算时完整筛选 Evidence");
-} */
+}
 
 // 4. 自定义优先级应当影响 Evidence 选择。
-/* {
+{
   const vectorEvidence = createEvidence(
     "VECTOR_CONTENT_" + "V".repeat(120),
     0,
@@ -212,10 +212,10 @@ function createOptions(contextWindow = 2000) {
   );
 
   console.log("PASS: 自定义优先级生效");
-} */
+}
 
 // 5. 空问题应当被拒绝。
-/* {
+{
   assert.throws(
     () =>
       buildHybridContext(
@@ -228,6 +228,6 @@ function createOptions(contextWindow = 2000) {
   );
 
   console.log("PASS: 空问题校验");
-} */
+} 
 
 console.log("\nV9.8.4 Hybrid Context 测试全部通过");

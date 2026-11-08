@@ -8,6 +8,29 @@ import type {
   AgentToolName,
 } from "./agent-controller";
 
+import {
+  normalizeAgentEvidence,
+} from "./agent-evidence";
+
+import {
+  buildHybridContext,
+  type HybridContextOptions,
+  type HybridContextResult,
+} from "./hybrid-context";
+
+
+const AGENT_CONTEXT_OPTIONS: HybridContextOptions = {
+  // 当前模型的上下文窗口
+  contextWindow: 400_000,
+
+  // 本项目单次调用预留的输出空间
+  reservedOutputTokens: 4_096,
+
+  // 15% 安全余量
+  safetyMargin: 0.15,
+};
+
+
 const ALLOWED_TOOLS = new Set<AgentToolName>([
   "vector_search",
   "keyword_search",
@@ -245,6 +268,122 @@ function isRecord(
   return typeof value === "object" && value !== null;
 }
 
+
+function summarizeLastToolResult(result: unknown): string {
+  if (!isRecord(result)) {
+    return safeJson(result, 1000);
+  }
+
+  const data = result.data;
+  let dataSummary: Record<string, unknown> = {};
+
+  if (Array.isArray(data)) {
+    dataSummary = {
+      resultCount: data.length,
+    };
+  } else if (isRecord(data)) {
+    if (typeof data.status === "string") {
+      dataSummary.status = data.status;
+    }
+
+    if (isRecord(data.vector)) {
+      dataSummary.vector = {
+        status: data.vector.status,
+        resultCount: data.vector.resultCount,
+      };
+    }
+
+    if (isRecord(data.graph)) {
+      dataSummary.graph = {
+        status: data.graph.status,
+        resultCount: data.graph.resultCount,
+        unresolvedCount: data.graph.unresolvedCount,
+      };
+    }
+
+    if (Array.isArray(data.evidence)) {
+      dataSummary.evidenceCount = data.evidence.length;
+    }
+
+    if (Array.isArray(data.chunks)) {
+      dataSummary.chunkCount = data.chunks.length;
+    }
+
+    if (Array.isArray(data.edges)) {
+      dataSummary.edgeCount = data.edges.length;
+    }
+
+    if (Array.isArray(data.candidates)) {
+      dataSummary.candidateCount = data.candidates.length;
+    }
+  }
+
+  return safeJson({
+    ok: result.ok,
+    metadata: result.metadata,
+    error: result.error,
+    dataSummary,
+  }, 2000);
+}
+
+export interface AgentLlmContext {
+  userContent: string;
+  hybridContext: HybridContextResult;
+}
+
+/**
+ * 为 Agent 的每次 LLM 调用构建受 Token Budget 控制的上下文。
+ */
+export function buildAgentLlmContext(
+  observation: AgentObservation,
+  options: HybridContextOptions = AGENT_CONTEXT_OPTIONS,
+): AgentLlmContext {
+  // 1. 将不同工具返回结果统一成 UnifiedEvidence。
+  const unifiedEvidence = normalizeAgentEvidence(
+    observation.evidence,
+  );
+
+  // 2. 组装不属于 Evidence 的固定上下文。
+  const fixedContext = [
+    `当前用户问题：\n${observation.question}`,
+    `已经执行的步骤数：\n${observation.steps}`,
+    `上一次工具：\n${observation.lastTool ?? "尚未调用工具"}`,
+    `上一次工具执行摘要：\n${summarizeLastToolResult(
+      observation.lastToolResult ?? null,
+    )}`,
+  ].join("\n\n");
+
+  // 3. 工具定义也会占用模型上下文。
+  // 将工具 Schema 纳入预算估算。
+  const budgetSystemPrompt = [
+    SYSTEM_PROMPT,
+    TOOL_FALLBACK_RULES,
+    "工具定义（用于 Token 预算估算）：",
+    JSON.stringify(tools),
+  ].join("\n\n");
+
+  // 4. 构建经过 Token Budget 筛选的 Context。
+  const hybridContext = buildHybridContext(
+    budgetSystemPrompt,
+    fixedContext,
+    unifiedEvidence,
+    options,
+  );
+
+  // 5. 组装最终发送给 LLM 的内容。
+  const userContent = [
+    fixedContext,
+    "之前获得的证据（已经经过 Token Budget 筛选）：",
+    hybridContext.context || "当前没有可用的检索证据。",
+  ].join("\n\n");
+
+  return {
+    userContent,
+    hybridContext,
+  };
+}
+
+
 function validateToolInput(
   tool: AgentToolName,
   input: unknown,
@@ -357,34 +496,18 @@ function validateToolInput(
 export async function decideWithLlm(
   observation: AgentObservation,
 ): Promise<AgentDecision> {
+  const agentContext = buildAgentLlmContext(observation);
   const response = await openai.chat.completions.create({
     model: "gpt-5.4-mini",
     temperature: 0,
     messages: [
       {
         role: "system",
-        content: SYSTEM_PROMPT + `${TOOL_FALLBACK_RULES}`,
+        content: SYSTEM_PROMPT + TOOL_FALLBACK_RULES,
       },
       {
         role: "user",
-        content: `
-            当前用户问题：
-            ${observation.question}
-
-            已经执行的步骤数：
-            ${observation.steps}
-
-            之前获得的证据：
-            ${safeJson(observation.evidence)}
-
-            上一次工具：
-            ${observation.lastTool ?? "尚未调用工具"}
-
-            上一次工具的实际执行结果：
-            ${safeJson(observation.lastToolResult ?? null)}
-
-            请根据以上信息，决定下一步行动。
-            `,
+        content: agentContext.userContent,
       },
     ],
     tools,
