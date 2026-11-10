@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import type {
+  AgentAnswerCitation,
+} from "./agent-answer";
+
 export type AgentToolName =
   | "vector_search"
   | "keyword_search"
@@ -26,6 +30,7 @@ export interface AgentDecision {
   action?: AgentAction;
   done: boolean;
   answer?: string;
+  citations?: AgentAnswerCitation[];
   reason: string;
 }
 
@@ -45,6 +50,7 @@ export interface AgentRunResult {
   trace: AgentTrace[];
   stopReason: string;
   messages?: AgentMessage[];
+  citations?: AgentAnswerCitation[];
 }
 
 export interface AgentTool {
@@ -104,6 +110,7 @@ export interface AgentState {
 
   // 终止状态
   answer?: string;
+  citations?: AgentAnswerCitation[];
   stopReason?: string;
 }
 
@@ -116,6 +123,7 @@ export type AgentStateUpdate = Partial<
     | "lastToolResult"
     | "answer"
     | "stopReason"
+    | "citations"
   >
 > & {
   evidenceToAppend?: unknown[];
@@ -165,6 +173,7 @@ export type AgentRoute =
       status: "completed" | "failed";
       stopReason: string;
       answer?: string;
+      citations?: AgentAnswerCitation[];
     };
 
 
@@ -197,6 +206,7 @@ export type AgentRoute =
                     done: decision.done,
                     action: decision.action,
                     answer: decision.answer,
+                    citations: decision.citations,
                   }),
                 },
               ],
@@ -436,6 +446,7 @@ export async function runAgent(
     trace: state.trace,
     messages: state.messages,
     stopReason: state.stopReason ?? "UNKNOWN",
+    citations: state.citations,
   });
 
   for (let step = 1; step <= state.maxSteps; step++) {
@@ -489,6 +500,7 @@ export async function runAgent(
         route.status,
         route.stopReason,
         route.answer,
+        route.citations
       );
     
       return toResult();
@@ -634,6 +646,7 @@ export function routeDecision(
       status: "completed",
       stopReason: "LLM_FINAL_ANSWER",
       answer: decision.answer,
+      citations: decision.citations ?? [],
     };
   }
 
@@ -664,11 +677,13 @@ export function finalizeAgentState(
   status: "completed" | "failed" | "max_steps",
   stopReason: string,
   answer?: string,
+  citations?: AgentAnswerCitation[]
 ): AgentState {
   return applyAgentStateUpdate(state, {
     status,
     stopReason,
     answer,
+    citations,
     ...(status === "completed" && answer
       ? {
           messagesToAppend: [

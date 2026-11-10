@@ -13,7 +13,13 @@ import {
   fromVectorChunk,
 } from "../lib/unified-evidence";
 
-const metadata = {
+import {
+  parseLlmAnswer,
+  resolveAgentAnswer,
+} from "../lib/agent-answer";
+
+
+/* const metadata = {
   source: "react/hooks.md",
   title: "React Hooks",
   section: "useState",
@@ -38,7 +44,7 @@ const keywordChunk = {
     [vectorChunk],
     [keywordChunk],
   ]);
-  console.log(result,'result');
+
   assert.equal(result.length, 1);
   assert.deepEqual(
     result[0].sources.sort(),
@@ -256,4 +262,137 @@ console.log("V9.8.5.1 Agent Evidence 测试全部通过");
 
   console.log("PASS: 空 Evidence Context 处理");
 }
+ */
+// 使用你现有测试文件中真实的 UnifiedEvidence fixture
+{const evidence = {
+  id: "evidence-test-001",
+  content: "useState 用于管理 React 组件状态。",
+  sources: ["vector"],
+  scores: { vector: 0.9 },
+  metadata: {
+    source: "react/hooks.md",
+    title: "React Hooks",
+    section: "useState",
+    chunkIndex: 1,
+  },
+  graphRelations: [],
+};
 
+const includedEvidence = [evidence];
+
+/** 1. 正常解析 */
+const payload = parseLlmAnswer(
+  JSON.stringify({
+    answer: "useState 用于管理组件状态。",
+    citations: ["evidence-test-001"],
+  }),
+);
+
+assert.equal(
+  payload.answer,
+  "useState 用于管理组件状态。",
+);
+
+console.log("PASS: LLM 答案解析");
+
+/** 2. 正常引用映射 */
+const resolved = resolveAgentAnswer(
+  payload,
+  includedEvidence as [],
+);
+
+assert.equal(resolved.citations.length, 1);
+assert.equal(
+  resolved.citations[0].source,
+  "react/hooks.md",
+);
+assert.equal(
+  resolved.citations[0].chunkIndex,
+  1,
+);
+
+console.log("PASS: Evidence ID 映射原始来源");
+
+/** 3. 伪造引用必须拒绝 */
+assert.throws(
+  () =>
+    resolveAgentAnswer(
+      {
+        answer: "测试答案",
+        citations: ["evidence-fake"],
+      },
+      includedEvidence as [],
+    ),
+  /UNKNOWN_EVIDENCE_CITATION/,
+);
+
+console.log("PASS: 未知 Evidence ID 拒绝");
+
+/** 4. 已检索但未进入 Context 的 Evidence 必须拒绝 */
+assert.throws(
+  () =>
+    resolveAgentAnswer(
+      {
+        answer: "测试答案",
+        citations: ["evidence-omitted"],
+      },
+      includedEvidence as [],
+    ),
+  /UNKNOWN_EVIDENCE_CITATION/,
+);
+
+console.log("PASS: 未进入 Context 的 Evidence 拒绝");
+
+/** 5. 重复引用去重 */
+const deduplicated = resolveAgentAnswer(
+  {
+    answer: "测试答案",
+    citations: [
+      "evidence-test-001",
+      "evidence-test-001",
+    ],
+  },
+  includedEvidence as [],
+);
+
+assert.equal(deduplicated.citations.length, 1);
+
+console.log("PASS: 重复引用去重");
+
+/** 6. 空引用允许 */
+const noCitation = resolveAgentAnswer(
+  {
+    answer: "当前证据不足。",
+    citations: [],
+  },
+  includedEvidence as [],
+);
+
+assert.equal(noCitation.citations.length, 0);
+
+console.log("PASS: 空引用处理");
+
+/** 7. 非法 JSON 拒绝 */
+assert.throws(
+  () => parseLlmAnswer("not-json"),
+  /INVALID_ANSWER_JSON/,
+);
+
+console.log("PASS: 非法 JSON 拒绝");
+
+/** 8. 空答案拒绝 */
+assert.throws(
+  () =>
+    parseLlmAnswer(
+      JSON.stringify({
+        answer: "",
+        citations: [],
+      }),
+    ),
+  /EMPTY_ANSWER/,
+);
+
+console.log("PASS: 空答案拒绝");
+
+console.log("V9.8.5.3 Agent Answer 测试全部通过");
+}

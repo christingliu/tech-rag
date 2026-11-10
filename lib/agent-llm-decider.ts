@@ -19,6 +19,11 @@ import {
 } from "./hybrid-context";
 
 
+import {
+  parseLlmAnswer,
+  resolveAgentAnswer,
+} from "./agent-answer";
+
 const AGENT_CONTEXT_OPTIONS: HybridContextOptions = {
   // 当前模型的上下文窗口
   contextWindow: 400_000,
@@ -246,6 +251,31 @@ const SYSTEM_PROMPT = `
 
 当需要检索时，调用一个工具。
 当证据足够，或继续检索没有合理价值时，直接给出最终答案。
+
+最终答案输出规则：
+
+当你决定不再调用工具时，必须返回合法 JSON：
+
+{
+  "answer": "基于检索证据生成的答案",
+  "citations": ["evidence-id-1", "evidence-id-2"]
+}
+
+规则：
+1. citations 只能使用当前 Context 中明确提供的 Evidence ID。
+2. 不允许编造、修改或猜测 Evidence ID。
+3. 不得引用历史轮次中出现、但当前 Context 中未提供的 Evidence ID。
+4. 每条引用必须能够支持答案中的相关结论。
+5. 每个重要事实性结论都必须有对应的 Evidence 引用。
+6. 不要为了增加引用数量而添加无关 Evidence。
+7. 如果某个结论没有证据支持，不要将其作为确定事实陈述。
+8. 如果没有足够证据，明确说明证据不足，citations 返回空数组。
+9. answer 必须是字符串。
+10. citations 必须是字符串数组，即使没有引用也必须返回 []。
+11. 最终答案必须是一个合法 JSON 对象。
+12. 不要使用 Markdown 代码块包裹 JSON。
+13. 不要在 JSON 之外输出 Markdown 或其他文字。
+14. 如果需要继续检索，仍然正常调用工具，不要返回最终答案 JSON。
 `;
 
 function safeJson(value: unknown, maxChars = 12000): string {
@@ -556,15 +586,27 @@ export async function decideWithLlm(
   }
 
   // 模型不再请求工具，视为生成最终答案。
-  const answer = message.content?.trim();
+ // 模型不再请求工具，视为生成最终答案。
+  const rawAnswer = message.content?.trim();
 
-  if (!answer) {
+  if (!rawAnswer) {
     throw new Error("EMPTY_LLM_FINAL_ANSWER");
   }
 
+  // 1. 解析模型返回的 JSON。
+  const payload = parseLlmAnswer(rawAnswer);
+
+  // 2. 验证引用是否属于本轮真正进入 Context 的 Evidence。
+  const resolvedAnswer = resolveAgentAnswer(
+    payload,
+    agentContext.hybridContext.includedEvidence,
+  );
+
+  // 3. 返回经过验证的答案和引用。
   return {
     done: true,
-    answer,
+    answer: resolvedAnswer.answer,
+    citations: resolvedAnswer.citations,
     reason: "LLM_FINAL_ANSWER",
   };
 }
