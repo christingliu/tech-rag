@@ -1,0 +1,76 @@
+
+[
+    {
+      "id": "Q001",
+      "question": "React useState 如何管理函数组件状态？",
+      "goldEvidence": [
+        {
+          "source": "react/state.md",
+          "title": "React State",
+          "section": "React State",
+          "chunkIndex": 0
+        },
+        {
+          "source": "react/state.md",
+          "title": "React State",
+          "section": "useState",
+          "chunkIndex": 1
+        }
+      ]
+    },
+    {
+      "id": "Q002",
+      "question": "React useEffect 如何同步组件与外部系统？",
+      "goldEvidence": [
+        {
+          "source": "react/hooks.md",
+          "title": "React Hooks",
+          "section": "React Hooks",
+          "chunkIndex": 0
+        },
+        {
+          "source": "react/hooks.md",
+          "title": "React Hooks",
+          "section": "useEffect",
+          "chunkIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "Q003",
+      "question": "React 中 useState 和 useEffect 分别负责什么？",
+      "goldEvidence": [
+        {
+          "source": "react/state.md",
+          "title": "React State",
+          "section": "useState",
+          "chunkIndex": 1
+        },
+        {
+          "source": "react/hooks.md",
+          "title": "React Hooks",
+          "section": "useEffect",
+          "chunkIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "Q004",
+      "question": "React useState 的批量更新和状态提升是什么？",
+      "goldEvidence": [
+        {
+          "source": "react/state.md",
+          "title": "React State",
+          "section": "批量更新",
+          "chunkIndex": 3
+        },
+        {
+          "source": "react/state.md",
+          "title": "React State",
+          "section": "状态提升",
+          "chunkIndex": 4
+        }
+      ]
+    }
+  ]
+  
